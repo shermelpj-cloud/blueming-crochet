@@ -24,6 +24,10 @@ function authHeaders(token) {
   return { apikey: ANON_KEY, Authorization: `Bearer ${token}` };
 }
 
+function productImagePath(publicUrl) {
+  return publicUrl.split("/object/public/product-images/")[1]?.split("?")[0];
+}
+
 // ---------- LOGIN SCREEN ----------
 function LoginScreen({ onLogin }) {
   const [email, setEmail] = useState("");
@@ -108,9 +112,10 @@ export default function BluemingAdmin() {
   const [showAdd, setShowAdd] = useState(false);
   const [addFiles, setAddFiles] = useState([]);
   const [editProduct, setEditProduct] = useState(null);
+  const [editNewFiles, setEditNewFiles] = useState([]);
   const [deleteProduct, setDeleteProduct] = useState(null);
   const [editSection, setEditSection] = useState(null);
-  const [form, setForm] = useState({ name: "", category: CATEGORIES[0], price: "", size: "", color: "", saleTag: "" });
+  const [form, setForm] = useState({ name: "", category: CATEGORIES[0], price: "", size: "", color: "", saleTag: "", description: "" });
   const [saving, setSaving] = useState(false);
 
   const loadAll = async () => {
@@ -121,6 +126,7 @@ export default function BluemingAdmin() {
       fetch(`${REST}/site_content?select=*`, { headers }).then((r) => r.json()),
       fetch(`${REST}/category_images?select=*`, { headers }).then((r) => r.json()),
     ]);
+    (prods || []).forEach((p) => p.product_images?.sort((a, b) => a.sort_order - b.sort_order));
     setProducts(prods || []);
     const contentMap = {};
     (contentRows || []).forEach((row) => (contentMap[row.key] = row));
@@ -145,7 +151,25 @@ export default function BluemingAdmin() {
   }
 
   const filteredProducts = products.filter((p) => categoryFilter === "All" || p.category === categoryFilter);
-  const resetForm = () => { setForm({ name: "", category: CATEGORIES[0], price: "", size: "", color: "", saleTag: "" }); setAddFiles([]); };
+  const resetForm = () => { setForm({ name: "", category: CATEGORIES[0], price: "", size: "", color: "", saleTag: "", description: "" }); setAddFiles([]); };
+
+  const uploadImagesFor = async (productId, files, startOrder) => {
+    for (let i = 0; i < files.length; i++) {
+      const file = files[i];
+      const path = `${productId}/${Date.now()}_${i}_${file.name}`;
+      await fetch(`${STORAGE}/object/product-images/${path}`, {
+        method: "POST",
+        headers: { ...authHeaders(token), "Content-Type": file.type },
+        body: file,
+      });
+      const publicUrl = `${STORAGE}/object/public/product-images/${path}`;
+      await fetch(`${REST}/product_images`, {
+        method: "POST",
+        headers: { ...authHeaders(token), "Content-Type": "application/json" },
+        body: JSON.stringify({ product_id: productId, image_url: publicUrl, sort_order: startOrder + i }),
+      });
+    }
+  };
 
   // ---------- PRODUCT CRUD ----------
   const saveNewProduct = async () => {
@@ -155,26 +179,11 @@ export default function BluemingAdmin() {
       const res = await fetch(`${REST}/products`, {
         method: "POST",
         headers: { ...authHeaders(token), "Content-Type": "application/json", Prefer: "return=representation" },
-        body: JSON.stringify({ name: form.name, category: form.category, price: Number(form.price), size: form.size, color: form.color, sale_tag: form.saleTag, description: "Handmade with love using soft, high-quality yarn.", status: "Active" }),
+        body: JSON.stringify({ name: form.name, category: form.category, price: Number(form.price), size: form.size, color: form.color, sale_tag: form.saleTag, description: form.description, status: "Active" }),
       });
       const [created] = await res.json();
       if (!res.ok) throw new Error("Could not save product.");
-
-      for (let i = 0; i < addFiles.length; i++) {
-        const file = addFiles[i];
-        const path = `${created.id}/${Date.now()}_${file.name}`;
-        await fetch(`${STORAGE}/object/product-images/${path}`, {
-          method: "POST",
-          headers: { ...authHeaders(token), "Content-Type": file.type },
-          body: file,
-        });
-        const publicUrl = `${STORAGE}/object/public/product-images/${path}`;
-        await fetch(`${REST}/product_images`, {
-          method: "POST",
-          headers: { ...authHeaders(token), "Content-Type": "application/json" },
-          body: JSON.stringify({ product_id: created.id, image_url: publicUrl, sort_order: i }),
-        });
-      }
+      await uploadImagesFor(created.id, addFiles, 0);
       setShowAdd(false);
       resetForm();
       await loadAll();
@@ -191,13 +200,23 @@ export default function BluemingAdmin() {
       await fetch(`${REST}/products?id=eq.${editProduct.id}`, {
         method: "PATCH",
         headers: { ...authHeaders(token), "Content-Type": "application/json" },
-        body: JSON.stringify({ name: editProduct.name, category: editProduct.category, price: Number(editProduct.price), status: editProduct.status, sale_tag: editProduct.sale_tag }),
+        body: JSON.stringify({ name: editProduct.name, category: editProduct.category, price: Number(editProduct.price), status: editProduct.status, sale_tag: editProduct.sale_tag, description: editProduct.description }),
       });
+      const startOrder = (editProduct.product_images?.length || 0);
+      await uploadImagesFor(editProduct.id, editNewFiles, startOrder);
       setEditProduct(null);
+      setEditNewFiles([]);
       await loadAll();
     } finally {
       setSaving(false);
     }
+  };
+
+  const deleteExistingImage = async (img) => {
+    const path = productImagePath(img.image_url);
+    if (path) await fetch(`${STORAGE}/object/product-images/${path}`, { method: "DELETE", headers: authHeaders(token) });
+    await fetch(`${REST}/product_images?id=eq.${img.id}`, { method: "DELETE", headers: authHeaders(token) });
+    setEditProduct((prev) => ({ ...prev, product_images: prev.product_images.filter((pi) => pi.id !== img.id) }));
   };
 
   const confirmDelete = async () => {
@@ -215,11 +234,23 @@ export default function BluemingAdmin() {
   const openEditSection = (type, key) => {
     if (type === "category") {
       const row = content[`category_${key}`];
-      setEditSection({ type, key, dbKey: `category_${key}`, title: key, desc: row?.description || "" });
+      setEditSection({ type, key, dbKey: `category_${key}`, title: key, desc: row?.description || "", imageUrl: row?.image_url || null });
     } else {
       const row = content[type];
-      setEditSection({ type, key: type, dbKey: type, title: row?.title || "", desc: row?.description || "" });
+      setEditSection({ type, key: type, dbKey: type, title: row?.title || "", desc: row?.description || "", imageUrl: row?.image_url || null });
     }
+  };
+
+  const uploadBannerImage = async (file) => {
+    if (!file || !editSection) return;
+    const path = `${editSection.dbKey.replace(/\s+/g, "-")}.jpg`;
+    await fetch(`${STORAGE}/object/banner-images/${path}`, {
+      method: "POST",
+      headers: { ...authHeaders(token), "Content-Type": file.type, "x-upsert": "true" },
+      body: file,
+    });
+    const publicUrl = `${STORAGE}/object/public/banner-images/${path}?t=${Date.now()}`;
+    setEditSection((prev) => ({ ...prev, imageUrl: publicUrl }));
   };
 
   const saveSection = async () => {
@@ -228,7 +259,7 @@ export default function BluemingAdmin() {
       await fetch(`${REST}/site_content?key=eq.${encodeURIComponent(editSection.dbKey)}`, {
         method: "PATCH",
         headers: { ...authHeaders(token), "Content-Type": "application/json" },
-        body: JSON.stringify({ title: editSection.title, description: editSection.desc }),
+        body: JSON.stringify({ title: editSection.title, description: editSection.desc, image_url: editSection.imageUrl }),
       });
       setEditSection(null);
       await loadAll();
@@ -257,7 +288,7 @@ export default function BluemingAdmin() {
 
   return (
     <div style={{ background: "#FFF9FB", minHeight: "100vh" }}>
-      <div className="flex items-center justify-between px-5 py-4" style={{ borderBottom: "1px solid #F4C0D1", background: "#fff" }}>
+      <div className="flex items-center justify-between px-4 sm:px-6 md:px-[60px] py-4" style={{ borderBottom: "1px solid #F4C0D1", background: "#fff" }}>
         <div className="flex items-center gap-2">
           <div className="flex items-center justify-center rounded-full" style={{ width: 32, height: 32, background: "#FBEAF0" }}>
             <Flower2 size={16} color="#D4537E" />
@@ -269,7 +300,7 @@ export default function BluemingAdmin() {
         </button>
       </div>
 
-      <div className="flex gap-2 px-5 pt-4">
+      <div className="flex gap-2 px-4 sm:px-6 md:px-[60px] pt-4">
         {[{ id: "products", label: "Products" }, { id: "content", label: "Banners & Text" }].map((t) => (
           <button key={t.id} onClick={() => setTab(t.id)} className="px-4 py-2 rounded-full text-xs font-medium" style={{ background: tab === t.id ? "#D4537E" : "#FBEAF0", color: tab === t.id ? "#fff" : "#993556" }}>
             {t.label}
@@ -278,7 +309,7 @@ export default function BluemingAdmin() {
       </div>
 
       {tab === "products" && (
-        <div className="px-5 py-4 max-w-6xl mx-auto">
+        <div className="px-4 sm:px-6 md:px-[60px] py-4 max-w-[1400px] mx-auto">
           <div className="flex items-center justify-between mb-4 gap-2 flex-wrap">
             <div className="relative">
               <select value={categoryFilter} onChange={(e) => setCategoryFilter(e.target.value)} className="appearance-none text-xs rounded-lg pl-3 pr-7 py-2" style={{ border: "1px solid #F4C0D1", background: "#fff", color: "#4B1528" }}>
@@ -315,7 +346,7 @@ export default function BluemingAdmin() {
                     <td className="py-2 px-3"><SaleBadge tag={p.sale_tag} /></td>
                     <td className="py-2 px-3"><Badge label={p.status} /></td>
                     <td className="py-2 px-3">
-                      <button onClick={() => setEditProduct({ ...p })} className="mr-2"><Pencil size={14} color="#185FA5" /></button>
+                      <button onClick={() => { setEditProduct({ ...p }); setEditNewFiles([]); }} className="mr-2"><Pencil size={14} color="#185FA5" /></button>
                       <button onClick={() => setDeleteProduct(p)}><Trash2 size={14} color="#C0392B" /></button>
                     </td>
                   </tr>
@@ -331,8 +362,8 @@ export default function BluemingAdmin() {
       )}
 
       {tab === "content" && (
-        <div className="px-5 py-4 max-w-3xl mx-auto">
-          <p className="text-xs mb-4" style={{ color: "#72243E" }}>Edit the banners and welcome text shown on the Customer Interface.</p>
+        <div className="px-4 sm:px-6 md:px-[60px] py-4 max-w-3xl mx-auto">
+          <p className="text-xs mb-4" style={{ color: "#72243E" }}>Edit the banner images and welcome text shown on the Customer Interface.</p>
 
           <div className="rounded-xl overflow-hidden mb-4" style={{ border: "1px solid #F4C0D1", background: "#fff" }}>
             <SectionRow label="Home welcome banner" preview={content.home?.description} onEdit={() => openEditSection("home")} />
@@ -372,12 +403,30 @@ export default function BluemingAdmin() {
       {showAdd && (
         <Modal onClose={() => { setShowAdd(false); resetForm(); }}>
           <h3 className="font-medium text-sm mb-3" style={{ color: "#4B1528" }}>Add product</h3>
+
+          {addFiles.length > 0 && (
+            <div className="flex flex-wrap gap-2 mb-2">
+              {addFiles.map((f, idx) => (
+                <div key={idx} className="relative" style={{ width: 56, height: 56 }}>
+                  <img src={URL.createObjectURL(f)} alt="" className="w-full h-full object-cover rounded-lg" />
+                  <button onClick={() => setAddFiles(addFiles.filter((_, i) => i !== idx))} className="absolute -top-1.5 -right-1.5 rounded-full flex items-center justify-center" style={{ width: 16, height: 16, background: "#C0392B" }}>
+                    <X size={10} color="#fff" />
+                  </button>
+                </div>
+              ))}
+            </div>
+          )}
           <label className="rounded-xl flex flex-col items-center justify-center py-4 mb-3 text-xs cursor-pointer" style={{ border: "1.5px dashed #ED93B1", color: "#993556" }}>
             <ImageIcon size={20} className="mb-1" />
-            {addFiles.length > 0 ? `${addFiles.length} image(s) selected` : "Upload images"}
-            <input type="file" accept="image/*" multiple className="hidden" onChange={(e) => setAddFiles(Array.from(e.target.files))} />
+            {addFiles.length > 0 ? "Upload more photos" : "Upload images"}
+            <input type="file" accept="image/*" multiple className="hidden" onChange={(e) => setAddFiles([...addFiles, ...Array.from(e.target.files)])} />
           </label>
+
           <Input label="Product name" value={form.name} onChange={(v) => setForm({ ...form, name: v })} />
+          <div className="mb-2.5">
+            <label className="text-[11px] block mb-1" style={{ color: "#72243E" }}>Description</label>
+            <textarea value={form.description} onChange={(e) => setForm({ ...form, description: e.target.value })} rows={3} className="w-full px-3 py-2 rounded-lg text-xs outline-none resize-none" style={{ border: "1px solid #F4C0D1" }} />
+          </div>
           <SelectField label="Category" value={form.category} onChange={(v) => setForm({ ...form, category: v })} options={CATEGORIES.map((c) => ({ value: c, label: c }))} />
           <div className="grid grid-cols-2 gap-2">
             <Input label="Price" value={form.price} onChange={(v) => setForm({ ...form, price: v })} />
@@ -392,9 +441,44 @@ export default function BluemingAdmin() {
       )}
 
       {editProduct && (
-        <Modal onClose={() => setEditProduct(null)}>
+        <Modal onClose={() => { setEditProduct(null); setEditNewFiles([]); }}>
           <h3 className="font-medium text-sm mb-3" style={{ color: "#4B1528" }}>Edit product</h3>
+
+          {editProduct.product_images?.length > 0 && (
+            <div className="flex flex-wrap gap-2 mb-2">
+              {editProduct.product_images.map((img) => (
+                <div key={img.id} className="relative" style={{ width: 56, height: 56 }}>
+                  <img src={img.image_url} alt="" className="w-full h-full object-cover rounded-lg" />
+                  <button onClick={() => deleteExistingImage(img)} className="absolute -top-1.5 -right-1.5 rounded-full flex items-center justify-center" style={{ width: 16, height: 16, background: "#C0392B" }}>
+                    <X size={10} color="#fff" />
+                  </button>
+                </div>
+              ))}
+            </div>
+          )}
+          {editNewFiles.length > 0 && (
+            <div className="flex flex-wrap gap-2 mb-2">
+              {editNewFiles.map((f, idx) => (
+                <div key={idx} className="relative" style={{ width: 56, height: 56 }}>
+                  <img src={URL.createObjectURL(f)} alt="" className="w-full h-full object-cover rounded-lg" />
+                  <button onClick={() => setEditNewFiles(editNewFiles.filter((_, i) => i !== idx))} className="absolute -top-1.5 -right-1.5 rounded-full flex items-center justify-center" style={{ width: 16, height: 16, background: "#C0392B" }}>
+                    <X size={10} color="#fff" />
+                  </button>
+                </div>
+              ))}
+            </div>
+          )}
+          <label className="rounded-xl flex flex-col items-center justify-center py-4 mb-3 text-xs cursor-pointer" style={{ border: "1.5px dashed #ED93B1", color: "#993556" }}>
+            <ImageIcon size={20} className="mb-1" />
+            Upload more photos
+            <input type="file" accept="image/*" multiple className="hidden" onChange={(e) => setEditNewFiles([...editNewFiles, ...Array.from(e.target.files)])} />
+          </label>
+
           <Input label="Product name" value={editProduct.name} onChange={(v) => setEditProduct({ ...editProduct, name: v })} />
+          <div className="mb-2.5">
+            <label className="text-[11px] block mb-1" style={{ color: "#72243E" }}>Description</label>
+            <textarea value={editProduct.description || ""} onChange={(e) => setEditProduct({ ...editProduct, description: e.target.value })} rows={3} className="w-full px-3 py-2 rounded-lg text-xs outline-none resize-none" style={{ border: "1px solid #F4C0D1" }} />
+          </div>
           <SelectField label="Category" value={editProduct.category} onChange={(v) => setEditProduct({ ...editProduct, category: v })} options={CATEGORIES.map((c) => ({ value: c, label: c }))} />
           <div className="grid grid-cols-2 gap-2">
             <Input label="Price" value={editProduct.price} onChange={(v) => setEditProduct({ ...editProduct, price: v })} />
@@ -423,6 +507,24 @@ export default function BluemingAdmin() {
           <h3 className="font-medium text-sm mb-3" style={{ color: "#4B1528" }}>
             Edit {editSection.type === "category" ? `${editSection.key} banner` : `${editSection.type} banner`}
           </h3>
+
+          <label className="relative rounded-xl flex flex-col items-center justify-center py-4 mb-3 text-xs cursor-pointer overflow-hidden" style={{ border: "1.5px dashed #ED93B1", color: "#993556", minHeight: 90 }}>
+            {editSection.imageUrl ? (
+              <img src={editSection.imageUrl} alt="" className="absolute inset-0 w-full h-full object-cover" />
+            ) : (
+              <>
+                <ImageIcon size={20} className="mb-1" />
+                Upload banner image
+              </>
+            )}
+            {editSection.imageUrl && (
+              <div className="absolute inset-0 flex items-center justify-center" style={{ background: "rgba(75,21,40,0.45)" }}>
+                <span className="text-[11px] text-white flex items-center gap-1"><Upload size={12} /> Replace image</span>
+              </div>
+            )}
+            <input type="file" accept="image/*" className="hidden" onChange={(e) => uploadBannerImage(e.target.files[0])} />
+          </label>
+
           {editSection.type !== "category" && (
             <Input label="Title" value={editSection.title} onChange={(v) => setEditSection({ ...editSection, title: v })} />
           )}
