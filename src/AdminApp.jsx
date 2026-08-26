@@ -368,6 +368,7 @@ export default function BluemingAdmin() {
           <div className="rounded-xl overflow-hidden mb-4" style={{ border: "1px solid #F4C0D1", background: "#fff" }}>
             <SectionRow label="Home welcome banner" preview={content.home?.description} onEdit={() => openEditSection("home")} />
             <SectionRow label="Shop page banner" preview={content.shop?.description} onEdit={() => openEditSection("shop")} />
+            <SectionRow label="About page" preview={content.about?.description} onEdit={() => openEditSection("about")} />
           </div>
 
           <div className="text-xs font-medium mb-2" style={{ color: "#4B1528" }}>Category banners</div>
