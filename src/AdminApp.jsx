@@ -278,7 +278,7 @@ export default function BluemingAdmin() {
       </div>
 
       {tab === "products" && (
-        <div className="px-5 py-4">
+        <div className="px-5 py-4 max-w-6xl mx-auto">
           <div className="flex items-center justify-between mb-4 gap-2 flex-wrap">
             <div className="relative">
               <select value={categoryFilter} onChange={(e) => setCategoryFilter(e.target.value)} className="appearance-none text-xs rounded-lg pl-3 pr-7 py-2" style={{ border: "1px solid #F4C0D1", background: "#fff", color: "#4B1528" }}>
@@ -292,8 +292,8 @@ export default function BluemingAdmin() {
             </button>
           </div>
 
-          <div className="rounded-xl overflow-hidden" style={{ border: "1px solid #F4C0D1", background: "#fff" }}>
-            <table className="w-full text-xs">
+          <div className="rounded-xl overflow-x-auto" style={{ border: "1px solid #F4C0D1", background: "#fff" }}>
+            <table className="w-full text-xs" style={{ minWidth: 560 }}>
               <thead>
                 <tr style={{ background: "#FBEAF0", color: "#72243E" }}>
                   <th className="text-left font-medium py-2 px-3">Img</th>
@@ -331,7 +331,7 @@ export default function BluemingAdmin() {
       )}
 
       {tab === "content" && (
-        <div className="px-5 py-4">
+        <div className="px-5 py-4 max-w-3xl mx-auto">
           <p className="text-xs mb-4" style={{ color: "#72243E" }}>Edit the banners and welcome text shown on the Customer Interface.</p>
 
           <div className="rounded-xl overflow-hidden mb-4" style={{ border: "1px solid #F4C0D1", background: "#fff" }}>
