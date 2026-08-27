@@ -1,6 +1,6 @@
 import React, { useState, useEffect, createContext, useContext } from "react";
 import { BrowserRouter, Routes, Route, Link, NavLink, useNavigate, useParams } from "react-router-dom";
-import { Heart, ChevronRight, ChevronLeft, X, Instagram, Facebook, Flower2, Star, Loader2, Menu, MapPin, Phone, Mail } from "lucide-react";
+import { Heart, ChevronRight, ChevronLeft, X, Instagram, Facebook, Star, Loader2, Menu, Mail } from "lucide-react";
 
 const SUPABASE_URL = "https://dfcdifrnymtnjazbexep.supabase.co";
 const ANON_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImRmY2RpZnJueW10bmphemJleGVwIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODc2ODg0MTEsImV4cCI6MjEwMzI2NDQxMX0.Ci9a9q_BvEnjL-vnQ3yQ2IjS6rsQJQXCTNISCkDBQ30";
@@ -10,10 +10,9 @@ const HEADERS = { apikey: ANON_KEY, Authorization: `Bearer ${ANON_KEY}` };
 const FACEBOOK_URL = "https://www.facebook.com/hndmdbyshem.ph";
 const INSTAGRAM_URL = "https://www.instagram.com/bluemingcrochet";
 
-// TODO: fill these in once you create a free EmailJS account (see setup guide)
-const EMAILJS_SERVICE_ID = "YOUR_SERVICE_ID";
-const EMAILJS_TEMPLATE_ID = "YOUR_TEMPLATE_ID";
-const EMAILJS_PUBLIC_KEY = "YOUR_PUBLIC_KEY";
+const EMAILJS_SERVICE_ID = "service_6a0524d";
+const EMAILJS_TEMPLATE_ID = "template_vonkxmh";
+const EMAILJS_PUBLIC_KEY = "kJ6-f5MeUK8ouDHzx";
 
 const CATEGORIES = ["Keychains", "Stuffed Toys", "Bags", "Hats", "Flowers", "Amigurumi", "Wearables", "Crochet Goodies"];
 const ICONS = { Keychains: "🔑", "Stuffed Toys": "🧸", Bags: "👜", Hats: "🧢", Flowers: "🌸", Amigurumi: "🐰", Wearables: "🧣", "Crochet Goodies": "🎀" };
@@ -21,6 +20,7 @@ const SALE_LABELS = { "10": "10% OFF", "20": "20% OFF", "30": "30% OFF", "40": "
 
 const WRAP = "w-full max-w-[1400px] mx-auto px-4 sm:px-6 md:px-[60px]";
 const HEADER_H = 64;
+const LOGO = "/logo.jpg";
 
 const REVIEWS_SHOP = [
   { name: "Anna R.", lang: "EN", text: "Super cute and well made! The stitching is so neat. Will definitely order again." },
@@ -77,28 +77,42 @@ function ProductThumb({ product, size = "100%" }) {
   );
 }
 
-function ReviewCarousel({ reviews }) {
+function ReviewCard({ r }) {
+  return (
+    <div className="rounded-2xl p-6 md:p-8 text-center h-full flex flex-col justify-center" style={{ background: "#FBEAF0" }}>
+      <div className="flex justify-center gap-0.5 mb-3">
+        {Array.from({ length: 5 }).map((_, s) => <Star key={s} size={14} color="#D4537E" fill="#D4537E" />)}
+      </div>
+      <p className="text-sm md:text-base italic mb-3" style={{ color: "#4B1528" }}>"{r.text}"</p>
+      <div className="text-xs md:text-sm font-medium" style={{ color: "#993556" }}>
+        {r.name} <span style={{ color: "#185FA5" }}>· {r.lang === "TL" ? "🇵🇭 Tagalog" : "🇬🇧 English"}</span>
+      </div>
+    </div>
+  );
+}
+
+// Auto-advancing carousel for small/medium screens; all-in-one-row grid for desktop
+function ReviewsSection({ reviews }) {
   const [i, setI] = useState(0);
   useEffect(() => {
     const timer = setInterval(() => setI((prev) => (prev + 1) % reviews.length), 4500);
     return () => clearInterval(timer);
   }, [reviews.length]);
-  const r = reviews[i];
+
   return (
-    <div className="rounded-2xl p-6 md:p-10 text-center max-w-2xl mx-auto" style={{ background: "#FBEAF0" }}>
-      <div className="flex justify-center gap-0.5 mb-3">
-        {Array.from({ length: 5 }).map((_, s) => <Star key={s} size={14} color="#D4537E" fill="#D4537E" />)}
+    <>
+      <div className="md:hidden max-w-2xl mx-auto">
+        <ReviewCard r={reviews[i]} />
+        <div className="flex justify-center gap-1.5 mt-4">
+          {reviews.map((_, idx) => (
+            <button key={idx} onClick={() => setI(idx)} style={{ width: 6, height: 6, borderRadius: 999, background: idx === i ? "#D4537E" : "#ED93B1" }} />
+          ))}
+        </div>
       </div>
-      <p key={i} className="text-sm md:text-base italic mb-3" style={{ color: "#4B1528", minHeight: 48 }}>"{r.text}"</p>
-      <div className="text-xs md:text-sm font-medium" style={{ color: "#993556" }}>
-        {r.name} <span style={{ color: "#185FA5" }}>· {r.lang === "TL" ? "🇵🇭 Tagalog" : "🇬🇧 English"}</span>
+      <div className="hidden md:grid md:grid-cols-3 gap-5">
+        {reviews.map((r, idx) => <ReviewCard key={idx} r={r} />)}
       </div>
-      <div className="flex justify-center gap-1.5 mt-4">
-        {reviews.map((_, idx) => (
-          <button key={idx} onClick={() => setI(idx)} style={{ width: 6, height: 6, borderRadius: 999, background: idx === i ? "#D4537E" : "#ED93B1" }} />
-        ))}
-      </div>
-    </div>
+    </>
   );
 }
 
@@ -106,9 +120,9 @@ function PageBanner({ imageUrl, emoji, title, desc, showTitle = true }) {
   return (
     <div className="w-full mb-2">
       {imageUrl ? (
-        <img src={imageUrl} alt={title} className="w-full object-cover" style={{ maxHeight: 340 }} />
+        <img src={imageUrl} alt={title} className="w-full object-cover" style={{ height: "clamp(140px, 28vw, 340px)" }} />
       ) : (
-        <div className="w-full text-center py-10" style={{ background: "#FBEAF0" }}>
+        <div className="w-full text-center py-8 md:py-10" style={{ background: "#FBEAF0" }}>
           <div style={{ fontSize: 30 }}>{emoji}</div>
         </div>
       )}
@@ -130,9 +144,7 @@ function Header() {
     <header className="sticky top-0 z-30" style={{ background: "#FFF9FB", borderBottom: "1px solid #F4C0D1", height: HEADER_H }}>
       <div className={`${WRAP} flex items-center justify-between h-full`}>
         <Link to="/" className="flex items-center gap-2" onClick={() => setOpen(false)}>
-          <div className="flex items-center justify-center rounded-full" style={{ width: 32, height: 32, background: "#FBEAF0" }}>
-            <Flower2 size={16} color="#D4537E" />
-          </div>
+          <img src={LOGO} alt="Blueming Crochet" style={{ width: 34, height: 34, borderRadius: "50%", objectFit: "cover" }} />
           <span className="font-medium text-sm" style={{ color: "#4B1528" }}>Blueming Crochet</span>
         </Link>
         <nav className="hidden md:flex items-center gap-8 text-sm">
@@ -183,21 +195,19 @@ function HomePage() {
 
   return (
     <div>
-      <section className="flex flex-col justify-center" style={{ minHeight: `calc(100vh - ${HEADER_H}px)` }}>
+      <section className="flex flex-col justify-start" style={{ minHeight: `calc(100vh - ${HEADER_H}px)` }}>
         {home.image_url ? (
-          <img src={home.image_url} alt="Blueming Crochet" className="w-full object-cover" style={{ maxHeight: 420 }} />
+          <img src={home.image_url} alt="Blueming Crochet" className="w-full object-cover" style={{ height: "clamp(160px, 32vw, 420px)" }} />
         ) : (
-          <div className="text-center px-6 pt-14 pb-10 md:pt-16 md:pb-12" style={{ background: "linear-gradient(180deg,#F4C0D1 0%,#FBEAF0 100%)" }}>
-            <div className="mx-auto flex items-center justify-center rounded-full mb-3" style={{ width: 72, height: 72, background: "#fff" }}>
-              <Flower2 size={34} color="#D4537E" />
-            </div>
-            <h1 className="font-medium" style={{ fontSize: 28, color: "#4B1528", letterSpacing: 0.5 }}>Blueming Crochet</h1>
+          <div className="text-center px-6 pt-10 pb-8 md:pt-14 md:pb-10" style={{ background: "linear-gradient(180deg,#F4C0D1 0%,#FBEAF0 100%)" }}>
+            <img src={LOGO} alt="Blueming Crochet" className="mx-auto mb-3" style={{ width: 64, height: 64, borderRadius: "50%", objectFit: "cover", border: "3px solid #fff" }} />
+            <h1 className="font-medium" style={{ fontSize: 26, color: "#4B1528", letterSpacing: 0.5 }}>Blueming Crochet</h1>
           </div>
         )}
 
-        <div className={`${WRAP} py-10 md:py-16 text-center`}>
+        <div className={`${WRAP} py-8 md:py-14 text-center`}>
           <div className="max-w-3xl mx-auto">
-            <h2 className="font-medium mb-4" style={{ fontSize: 24, color: "#4B1528" }}>{home.title}</h2>
+            <h2 className="font-medium mb-4" style={{ fontSize: 22, color: "#4B1528" }}>{home.title}</h2>
             <p className="text-base md:text-lg leading-relaxed mb-8" style={{ color: "#72243E" }}>{home.description}</p>
             <button onClick={() => navigate("/products")} className="w-full sm:w-auto sm:px-16 py-3.5 rounded-full font-medium text-sm" style={{ background: "#D4537E", color: "#fff" }}>
               Shop now
@@ -229,7 +239,7 @@ function HomePage() {
 
 // ---------- PRODUCTS (ALL) ----------
 function ProductsPage() {
-  const { content, products } = useData();
+  const { content, products, openProduct } = useData();
   const shop = content.shop || { title: "All Collections", description: "" };
 
   return (
@@ -250,13 +260,13 @@ function ProductsPage() {
               </div>
               <div className="grid grid-cols-3 sm:grid-cols-4 md:grid-cols-5 gap-3 md:gap-4">
                 {catProducts.slice(0, 5).map((p) => (
-                  <Link key={p.id} to={`/product/${p.id}`} className="text-left rounded-2xl overflow-hidden block" style={{ background: "#fff", border: "1px solid #F4C0D1" }}>
+                  <button key={p.id} onClick={() => openProduct(p.id)} className="text-left rounded-2xl overflow-hidden w-full" style={{ background: "#fff", border: "1px solid #F4C0D1" }}>
                     <ProductThumb product={p} />
                     <div className="p-2">
                       <div className="text-xs font-medium truncate" style={{ color: "#4B1528" }}>{p.name}</div>
                       <div className="text-xs mt-0.5" style={{ color: "#D4537E" }}>₱{p.price}</div>
                     </div>
-                  </Link>
+                  </button>
                 ))}
               </div>
             </div>
@@ -268,8 +278,8 @@ function ProductsPage() {
       </div>
 
       <div className={`${WRAP} pb-14`}>
-        <h3 className="font-medium text-sm mb-4 text-center" style={{ color: "#4B1528" }}>What our customers say</h3>
-        <ReviewCarousel reviews={REVIEWS_SHOP} />
+        <h3 className="font-medium text-sm mb-5 text-center" style={{ color: "#4B1528" }}>What our customers say</h3>
+        <ReviewsSection reviews={REVIEWS_SHOP} />
       </div>
     </div>
   );
@@ -278,7 +288,7 @@ function ProductsPage() {
 // ---------- CATEGORY ----------
 function CategoryPage() {
   const { category } = useParams();
-  const { content, products } = useData();
+  const { content, products, openProduct } = useData();
   const catProducts = products.filter((p) => p.category === category);
   const row = content[`category_${category}`] || {};
 
@@ -288,13 +298,13 @@ function CategoryPage() {
       <div className={`${WRAP} py-5 md:py-8`}>
         <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 gap-3 md:gap-4">
           {catProducts.map((p) => (
-            <Link key={p.id} to={`/product/${p.id}`} className="text-left rounded-2xl overflow-hidden block" style={{ background: "#fff", border: "1px solid #F4C0D1" }}>
+            <button key={p.id} onClick={() => openProduct(p.id)} className="text-left rounded-2xl overflow-hidden w-full" style={{ background: "#fff", border: "1px solid #F4C0D1" }}>
               <ProductThumb product={p} />
               <div className="p-2.5">
                 <div className="text-xs font-medium" style={{ color: "#4B1528" }}>{p.name}</div>
                 <div className="text-xs mt-1" style={{ color: "#D4537E" }}>₱{p.price}</div>
               </div>
-            </Link>
+            </button>
           ))}
           {catProducts.length === 0 && (
             <p className="col-span-2 md:col-span-4 text-center text-xs py-8" style={{ color: "#993556" }}>No products in this category yet.</p>
@@ -305,33 +315,30 @@ function CategoryPage() {
   );
 }
 
-// ---------- PRODUCT DETAIL ----------
-function ProductPage() {
-  const { id } = useParams();
-  const navigate = useNavigate();
+// ---------- PRODUCT DETAILS MODAL ----------
+function ProductModal({ id, onClose }) {
   const { products } = useData();
   const [imgIdx, setImgIdx] = useState(0);
   const [orderModal, setOrderModal] = useState(false);
+
+  useEffect(() => {
+    setImgIdx(0);
+    setOrderModal(false);
+  }, [id]);
+
+  if (!id) return null;
   const p = products.find((pr) => String(pr.id) === String(id));
-
-  if (!p) {
-    return (
-      <div className="min-h-screen flex flex-col items-center justify-center gap-3" style={{ background: "#FFF9FB" }}>
-        <span className="text-sm" style={{ color: "#993556" }}>Product not found.</span>
-        <Link to="/products" className="text-sm font-medium" style={{ color: "#D4537E" }}>Back to Products</Link>
-      </div>
-    );
-  }
-
+  if (!p) return null;
   const images = p.product_images?.length ? p.product_images : [{ image_url: null }];
 
   return (
-    <div style={{ minHeight: "100vh", background: "#FFF9FB" }}>
-      <div className={`${WRAP} py-4 md:py-8`}>
-        <button onClick={() => navigate(-1)} className="flex items-center gap-1 text-xs mb-4" style={{ color: "#993556" }}>
-          <ChevronLeft size={14} /> Back
+    <div className="fixed inset-0 z-50 flex items-center justify-center p-3 md:p-6" style={{ background: "rgba(75,21,40,0.55)" }} onClick={onClose}>
+      <div className="w-full max-w-3xl rounded-2xl relative overflow-y-auto" style={{ background: "#fff", maxHeight: "92vh" }} onClick={(e) => e.stopPropagation()}>
+        <button onClick={onClose} className="absolute top-3 right-3 z-10 flex items-center justify-center rounded-full" style={{ width: 32, height: 32, background: "#FBEAF0" }}>
+          <X size={16} color="#993556" />
         </button>
-        <div className="md:flex md:gap-10">
+
+        <div className="p-5 md:p-8 md:flex md:gap-8">
           <div className="relative rounded-2xl overflow-hidden mb-4 md:mb-0 md:w-1/2 md:shrink-0" style={{ border: "1px solid #F4C0D1" }}>
             {images[imgIdx]?.image_url ? (
               <img src={images[imgIdx].image_url} alt={p.name} className="w-full" style={{ aspectRatio: "1", objectFit: "cover" }} />
@@ -359,7 +366,7 @@ function ProductPage() {
           </div>
 
           <div className="md:w-1/2 md:flex md:flex-col">
-            <h2 className="font-medium mb-1" style={{ fontSize: 19, color: "#4B1528" }}>{p.name}</h2>
+            <h2 className="font-medium mb-1 pr-8" style={{ fontSize: 19, color: "#4B1528" }}>{p.name}</h2>
             <p className="text-sm mb-2" style={{ color: "#72243E" }}>{p.description}</p>
             <div className="font-medium mb-4" style={{ fontSize: 20, color: "#D4537E" }}>₱{p.price}</div>
             <button onClick={() => setOrderModal(true)} className="w-full md:w-auto md:px-12 py-3 rounded-full font-medium text-sm mb-6" style={{ background: "#D4537E", color: "#fff" }}>
@@ -367,25 +374,32 @@ function ProductPage() {
             </button>
 
             <h3 className="font-medium text-sm mb-3" style={{ color: "#4B1528" }}>Customer reviews</h3>
-            <ReviewCarousel reviews={REVIEWS_PRODUCT} />
+            <div className="max-w-md">
+              <ReviewsSection reviews={REVIEWS_PRODUCT} />
+            </div>
           </div>
         </div>
       </div>
 
       {orderModal && (
-        <Modal onClose={() => setOrderModal(false)}>
-          <div className="text-center">
-            <p className="text-sm mb-4" style={{ color: "#72243E" }}>
-              To order, please message us directly on our Instagram or Facebook Page so we can confirm your order, preferred design, colors, size, and other details.
-            </p>
-            <a href={INSTAGRAM_URL} target="_blank" rel="noreferrer" className="w-full py-2.5 rounded-full font-medium text-sm mb-2 flex items-center justify-center gap-2" style={{ background: "#D4537E", color: "#fff" }}>
-              <Instagram size={16} /> Message us on Instagram
-            </a>
-            <a href={FACEBOOK_URL} target="_blank" rel="noreferrer" className="w-full py-2.5 rounded-full font-medium text-sm flex items-center justify-center gap-2" style={{ border: "1px solid #ED93B1", color: "#185FA5" }}>
-              <Facebook size={16} /> Message us on Facebook
-            </a>
+        <div className="fixed inset-0 z-[60] flex items-center justify-center px-6" style={{ background: "rgba(75,21,40,0.55)" }} onClick={() => setOrderModal(false)}>
+          <div className="w-full max-w-xs rounded-2xl p-5 relative" style={{ background: "#fff" }} onClick={(e) => e.stopPropagation()}>
+            <button onClick={() => setOrderModal(false)} className="absolute top-3 right-3">
+              <X size={16} color="#993556" />
+            </button>
+            <div className="text-center">
+              <p className="text-sm mb-4" style={{ color: "#72243E" }}>
+                To order, please message us directly on our Instagram or Facebook Page so we can confirm your order, preferred design, colors, size, and other details.
+              </p>
+              <a href={INSTAGRAM_URL} target="_blank" rel="noreferrer" className="w-full py-2.5 rounded-full font-medium text-sm mb-2 flex items-center justify-center gap-2" style={{ background: "#D4537E", color: "#fff" }}>
+                <Instagram size={16} /> Message us on Instagram
+              </a>
+              <a href={FACEBOOK_URL} target="_blank" rel="noreferrer" className="w-full py-2.5 rounded-full font-medium text-sm flex items-center justify-center gap-2" style={{ border: "1px solid #ED93B1", color: "#185FA5" }}>
+                <Facebook size={16} /> Message us on Facebook
+              </a>
+            </div>
           </div>
-        </Modal>
+        </div>
       )}
     </div>
   );
@@ -484,19 +498,6 @@ function ContactPage() {
   );
 }
 
-function Modal({ children, onClose }) {
-  return (
-    <div className="fixed inset-0 flex items-center justify-center px-6 z-50" style={{ background: "rgba(75,21,40,0.45)" }}>
-      <div className="w-full max-w-xs rounded-2xl p-5 relative" style={{ background: "#fff" }}>
-        <button onClick={onClose} className="absolute top-3 right-3">
-          <X size={16} color="#993556" />
-        </button>
-        {children}
-      </div>
-    </div>
-  );
-}
-
 // ---------- ROOT ----------
 export default function BluemingCrochet() {
   const [loading, setLoading] = useState(true);
@@ -504,6 +505,7 @@ export default function BluemingCrochet() {
   const [products, setProducts] = useState([]);
   const [content, setContent] = useState({});
   const [categoryImages, setCategoryImages] = useState({});
+  const [activeProductId, setActiveProductId] = useState(null);
 
   useEffect(() => {
     (async () => {
@@ -533,7 +535,7 @@ export default function BluemingCrochet() {
   if (error) return <ErrorScreen message={error} />;
 
   return (
-    <DataContext.Provider value={{ products, content, categoryImages }}>
+    <DataContext.Provider value={{ products, content, categoryImages, openProduct: setActiveProductId }}>
       <BrowserRouter>
         <div style={{ background: "#FFF9FB" }}>
           <Header />
@@ -542,10 +544,10 @@ export default function BluemingCrochet() {
             <Route path="/about" element={<AboutPage />} />
             <Route path="/products" element={<ProductsPage />} />
             <Route path="/products/:category" element={<CategoryPage />} />
-            <Route path="/product/:id" element={<ProductPage />} />
             <Route path="/contact" element={<ContactPage />} />
             <Route path="*" element={<HomePage />} />
           </Routes>
+          <ProductModal id={activeProductId} onClose={() => setActiveProductId(null)} />
         </div>
       </BrowserRouter>
     </DataContext.Provider>

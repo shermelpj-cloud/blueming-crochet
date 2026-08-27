@@ -24,6 +24,25 @@ function authHeaders(token) {
   return { apikey: ANON_KEY, Authorization: `Bearer ${token}` };
 }
 
+// Wraps fetch with real error surfacing so failed saves are never silent,
+// and auto-logs-out on an expired/invalid session so the admin knows to log in again.
+async function authedFetch(url, options, onAuthExpired) {
+  const res = await fetch(url, options);
+  if (res.status === 401) {
+    onAuthExpired?.();
+    throw new Error("Your session expired. Please log in again.");
+  }
+  if (!res.ok) {
+    let msg = `Save failed (error ${res.status}).`;
+    try {
+      const data = await res.json();
+      if (data?.message) msg = data.message;
+    } catch (_) {}
+    throw new Error(msg);
+  }
+  return res;
+}
+
 function productImagePath(publicUrl) {
   return publicUrl.split("/object/public/product-images/")[1]?.split("?")[0];
 }
@@ -58,9 +77,7 @@ function LoginScreen({ onLogin }) {
     <div className="min-h-screen flex items-center justify-center px-6" style={{ background: "#FFF9FB" }}>
       <div className="w-full max-w-xs rounded-2xl p-6" style={{ background: "#fff", border: "1px solid #F4C0D1" }}>
         <div className="flex flex-col items-center mb-5">
-          <div className="flex items-center justify-center rounded-full mb-2" style={{ width: 48, height: 48, background: "#FBEAF0" }}>
-            <Flower2 size={22} color="#D4537E" />
-          </div>
+          <img src="/logo.jpg" alt="Blueming Crochet" style={{ width: 56, height: 56, borderRadius: "50%", objectFit: "cover" }} className="mb-2" />
           <span className="font-medium text-sm" style={{ color: "#4B1528" }}>Blueming Crochet — Admin</span>
         </div>
         <label className="text-[11px] block mb-1" style={{ color: "#72243E" }}>Email</label>
@@ -176,13 +193,12 @@ export default function BluemingAdmin() {
     if (!form.name || !form.price) return;
     setSaving(true);
     try {
-      const res = await fetch(`${REST}/products`, {
+      const res = await authedFetch(`${REST}/products`, {
         method: "POST",
         headers: { ...authHeaders(token), "Content-Type": "application/json", Prefer: "return=representation" },
         body: JSON.stringify({ name: form.name, category: form.category, price: Number(form.price), size: form.size, color: form.color, sale_tag: form.saleTag, description: form.description, status: "Active" }),
-      });
+      }, () => setToken(null));
       const [created] = await res.json();
-      if (!res.ok) throw new Error("Could not save product.");
       await uploadImagesFor(created.id, addFiles, 0);
       setShowAdd(false);
       resetForm();
@@ -197,16 +213,18 @@ export default function BluemingAdmin() {
   const saveEdit = async () => {
     setSaving(true);
     try {
-      await fetch(`${REST}/products?id=eq.${editProduct.id}`, {
+      await authedFetch(`${REST}/products?id=eq.${editProduct.id}`, {
         method: "PATCH",
         headers: { ...authHeaders(token), "Content-Type": "application/json" },
         body: JSON.stringify({ name: editProduct.name, category: editProduct.category, price: Number(editProduct.price), status: editProduct.status, sale_tag: editProduct.sale_tag, description: editProduct.description }),
-      });
+      }, () => setToken(null));
       const startOrder = (editProduct.product_images?.length || 0);
       await uploadImagesFor(editProduct.id, editNewFiles, startOrder);
       setEditProduct(null);
       setEditNewFiles([]);
       await loadAll();
+    } catch (e) {
+      alert(e.message);
     } finally {
       setSaving(false);
     }
@@ -222,9 +240,11 @@ export default function BluemingAdmin() {
   const confirmDelete = async () => {
     setSaving(true);
     try {
-      await fetch(`${REST}/products?id=eq.${deleteProduct.id}`, { method: "DELETE", headers: authHeaders(token) });
+      await authedFetch(`${REST}/products?id=eq.${deleteProduct.id}`, { method: "DELETE", headers: authHeaders(token) }, () => setToken(null));
       setDeleteProduct(null);
       await loadAll();
+    } catch (e) {
+      alert(e.message);
     } finally {
       setSaving(false);
     }
@@ -256,13 +276,15 @@ export default function BluemingAdmin() {
   const saveSection = async () => {
     setSaving(true);
     try {
-      await fetch(`${REST}/site_content?key=eq.${encodeURIComponent(editSection.dbKey)}`, {
+      await authedFetch(`${REST}/site_content?key=eq.${encodeURIComponent(editSection.dbKey)}`, {
         method: "PATCH",
         headers: { ...authHeaders(token), "Content-Type": "application/json" },
         body: JSON.stringify({ title: editSection.title, description: editSection.desc, image_url: editSection.imageUrl }),
-      });
+      }, () => setToken(null));
       setEditSection(null);
       await loadAll();
+    } catch (e) {
+      alert(e.message);
     } finally {
       setSaving(false);
     }
@@ -290,9 +312,7 @@ export default function BluemingAdmin() {
     <div style={{ background: "#FFF9FB", minHeight: "100vh" }}>
       <div className="flex items-center justify-between px-4 sm:px-6 md:px-[60px] py-4" style={{ borderBottom: "1px solid #F4C0D1", background: "#fff" }}>
         <div className="flex items-center gap-2">
-          <div className="flex items-center justify-center rounded-full" style={{ width: 32, height: 32, background: "#FBEAF0" }}>
-            <Flower2 size={16} color="#D4537E" />
-          </div>
+          <img src="/logo.jpg" alt="Blueming Crochet" style={{ width: 32, height: 32, borderRadius: "50%", objectFit: "cover" }} />
           <span className="font-medium text-sm" style={{ color: "#4B1528" }}>Blueming Crochet — Admin</span>
         </div>
         <button onClick={() => setToken(null)} className="flex items-center gap-1 text-xs" style={{ color: "#993556" }}>
