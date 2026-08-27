@@ -482,6 +482,8 @@ function FieldInput({ label, ...props }) {
 }
 
 function ContactPage() {
+  const { content } = useData();
+  const contact = content.contact || {};
   const [form, setForm] = useState({ full_name: "", address: "", phone: "", email: "", message: "" });
   const [status, setStatus] = useState("idle");
 
@@ -512,15 +514,9 @@ function ContactPage() {
 
   return (
     <div style={{ minHeight: "100vh", background: "#FFF9FB" }}>
-      <div className={`${WRAP} py-10 md:py-16`}>
+      <PageBanner imageUrl={contact.image_url} emoji="💌" title={contact.title || "Contact Us"} desc={contact.description || "Have a question or want a custom piece? Send us a message and we'll get back to you soon."} />
+      <div className={`${WRAP} pb-14 md:pb-20`}>
         <div className="max-w-xl mx-auto rounded-2xl p-6 md:p-10" style={{ background: "#fff", border: "1px solid #F4C0D1" }}>
-          <div className="text-center mb-6">
-            <div className="mx-auto flex items-center justify-center rounded-full mb-3" style={{ width: 52, height: 52, background: "#FBEAF0" }}>
-              <Mail size={22} color="#D4537E" />
-            </div>
-            <h2 className="font-medium mb-2" style={{ fontSize: 19, color: "#4B1528" }}>Contact Us</h2>
-            <p className="text-xs md:text-sm" style={{ color: "#72243E" }}>Have a question or want a custom piece? Send us a message and we'll get back to you soon.</p>
-          </div>
           <form onSubmit={submit}>
             <FieldInput label="Full Name" value={form.full_name} onChange={update("full_name")} required />
             <FieldInput label="Address" value={form.address} onChange={update("address")} />

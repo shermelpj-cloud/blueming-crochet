@@ -134,6 +134,13 @@ export default function BluemingAdmin() {
   const [editSection, setEditSection] = useState(null);
   const [form, setForm] = useState({ name: "", category: CATEGORIES[0], price: "", size: "", color: "", saleTag: "", description: "" });
   const [saving, setSaving] = useState(false);
+  const [toast, setToast] = useState(null); // { type: 'success' | 'error', message }
+
+  const notify = (type, message) => {
+    setToast({ type, message });
+    window.clearTimeout(notify._t);
+    notify._t = window.setTimeout(() => setToast(null), 3000);
+  };
 
   const loadAll = async () => {
     setLoading(true);
@@ -203,8 +210,9 @@ export default function BluemingAdmin() {
       setShowAdd(false);
       resetForm();
       await loadAll();
+      notify("success", "Product added successfully!");
     } catch (e) {
-      alert(e.message);
+      notify("error", e.message);
     } finally {
       setSaving(false);
     }
@@ -223,18 +231,24 @@ export default function BluemingAdmin() {
       setEditProduct(null);
       setEditNewFiles([]);
       await loadAll();
+      notify("success", "Product updated successfully!");
     } catch (e) {
-      alert(e.message);
+      notify("error", e.message);
     } finally {
       setSaving(false);
     }
   };
 
   const deleteExistingImage = async (img) => {
-    const path = productImagePath(img.image_url);
-    if (path) await fetch(`${STORAGE}/object/product-images/${path}`, { method: "DELETE", headers: authHeaders(token) });
-    await fetch(`${REST}/product_images?id=eq.${img.id}`, { method: "DELETE", headers: authHeaders(token) });
-    setEditProduct((prev) => ({ ...prev, product_images: prev.product_images.filter((pi) => pi.id !== img.id) }));
+    try {
+      const path = productImagePath(img.image_url);
+      if (path) await authedFetch(`${STORAGE}/object/product-images/${path}`, { method: "DELETE", headers: authHeaders(token) }, () => setToken(null));
+      await authedFetch(`${REST}/product_images?id=eq.${img.id}`, { method: "DELETE", headers: authHeaders(token) }, () => setToken(null));
+      setEditProduct((prev) => ({ ...prev, product_images: prev.product_images.filter((pi) => pi.id !== img.id) }));
+      notify("success", "Photo removed.");
+    } catch (e) {
+      notify("error", e.message);
+    }
   };
 
   const confirmDelete = async () => {
@@ -243,8 +257,9 @@ export default function BluemingAdmin() {
       await authedFetch(`${REST}/products?id=eq.${deleteProduct.id}`, { method: "DELETE", headers: authHeaders(token) }, () => setToken(null));
       setDeleteProduct(null);
       await loadAll();
+      notify("success", "Product deleted.");
     } catch (e) {
-      alert(e.message);
+      notify("error", e.message);
     } finally {
       setSaving(false);
     }
@@ -263,14 +278,19 @@ export default function BluemingAdmin() {
 
   const uploadBannerImage = async (file) => {
     if (!file || !editSection) return;
-    const path = `${editSection.dbKey.replace(/\s+/g, "-")}.jpg`;
-    await fetch(`${STORAGE}/object/banner-images/${path}`, {
-      method: "POST",
-      headers: { ...authHeaders(token), "Content-Type": file.type, "x-upsert": "true" },
-      body: file,
-    });
-    const publicUrl = `${STORAGE}/object/public/banner-images/${path}?t=${Date.now()}`;
-    setEditSection((prev) => ({ ...prev, imageUrl: publicUrl }));
+    try {
+      const path = `${editSection.dbKey.replace(/\s+/g, "-")}.jpg`;
+      await authedFetch(`${STORAGE}/object/banner-images/${path}`, {
+        method: "POST",
+        headers: { ...authHeaders(token), "Content-Type": file.type, "x-upsert": "true" },
+        body: file,
+      }, () => setToken(null));
+      const publicUrl = `${STORAGE}/object/public/banner-images/${path}?t=${Date.now()}`;
+      setEditSection((prev) => ({ ...prev, imageUrl: publicUrl }));
+      notify("success", "Banner image uploaded! Click Save Changes to apply it.");
+    } catch (e) {
+      notify("error", e.message);
+    }
   };
 
   const saveSection = async () => {
@@ -283,8 +303,9 @@ export default function BluemingAdmin() {
       }, () => setToken(null));
       setEditSection(null);
       await loadAll();
+      notify("success", "Banner updated successfully!");
     } catch (e) {
-      alert(e.message);
+      notify("error", e.message);
     } finally {
       setSaving(false);
     }
@@ -293,23 +314,33 @@ export default function BluemingAdmin() {
   // ---------- CATEGORY TILE IMAGE ----------
   const handleCategoryImageUpload = async (category, file) => {
     if (!file) return;
-    const path = `${category.replace(/\s+/g, "-")}.jpg`;
-    await fetch(`${STORAGE}/object/category-images/${path}`, {
-      method: "POST",
-      headers: { ...authHeaders(token), "Content-Type": file.type, "x-upsert": "true" },
-      body: file,
-    });
-    const publicUrl = `${STORAGE}/object/public/category-images/${path}?t=${Date.now()}`;
-    await fetch(`${REST}/category_images?on_conflict=category`, {
-      method: "POST",
-      headers: { ...authHeaders(token), "Content-Type": "application/json", Prefer: "resolution=merge-duplicates" },
-      body: JSON.stringify({ category, image_url: publicUrl }),
-    });
-    setCategoryImages((prev) => ({ ...prev, [category]: publicUrl }));
+    try {
+      const path = `${category.replace(/\s+/g, "-")}.jpg`;
+      await authedFetch(`${STORAGE}/object/category-images/${path}`, {
+        method: "POST",
+        headers: { ...authHeaders(token), "Content-Type": file.type, "x-upsert": "true" },
+        body: file,
+      }, () => setToken(null));
+      const publicUrl = `${STORAGE}/object/public/category-images/${path}?t=${Date.now()}`;
+      await authedFetch(`${REST}/category_images?on_conflict=category`, {
+        method: "POST",
+        headers: { ...authHeaders(token), "Content-Type": "application/json", Prefer: "resolution=merge-duplicates" },
+        body: JSON.stringify({ category, image_url: publicUrl }),
+      }, () => setToken(null));
+      setCategoryImages((prev) => ({ ...prev, [category]: publicUrl }));
+      notify("success", `${category} tile image updated!`);
+    } catch (e) {
+      notify("error", e.message);
+    }
   };
 
   return (
     <div style={{ background: "#FFF9FB", minHeight: "100vh" }}>
+      {toast && (
+        <div className="fixed top-4 left-1/2 -translate-x-1/2 z-[100] px-4 py-2.5 rounded-full text-xs font-medium shadow-lg" style={{ background: toast.type === "success" ? "#3B6D11" : "#C0392B", color: "#fff", maxWidth: "90vw" }}>
+          {toast.message}
+        </div>
+      )}
       <div className="flex items-center justify-between px-4 sm:px-6 md:px-[60px] py-4" style={{ borderBottom: "1px solid #F4C0D1", background: "#fff" }}>
         <div className="flex items-center gap-2">
           <img src="/logo.jpg" alt="Blueming Crochet" style={{ width: 32, height: 32, borderRadius: "50%", objectFit: "cover" }} />
@@ -389,6 +420,7 @@ export default function BluemingAdmin() {
             <SectionRow label="Home welcome banner" preview={content.home?.description} onEdit={() => openEditSection("home")} />
             <SectionRow label="Shop page banner" preview={content.shop?.description} onEdit={() => openEditSection("shop")} />
             <SectionRow label="About page" preview={content.about?.description} onEdit={() => openEditSection("about")} />
+            <SectionRow label="Contact page banner" preview={content.contact?.description} onEdit={() => openEditSection("contact")} />
           </div>
 
           <div className="text-xs font-medium mb-2" style={{ color: "#4B1528" }}>Category banners</div>
