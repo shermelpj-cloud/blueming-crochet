@@ -77,6 +77,16 @@ function ProductThumb({ product, size = "100%" }) {
   );
 }
 
+function StarRating({ size = 11 }) {
+  return (
+    <div className="flex gap-0.5">
+      {Array.from({ length: 5 }).map((_, i) => (
+        <Star key={i} size={size} color="#FFA41C" fill="#FFA41C" />
+      ))}
+    </div>
+  );
+}
+
 function ReviewCard({ r }) {
   return (
     <div className="rounded-2xl p-6 md:p-8 text-center h-full flex flex-col justify-center" style={{ background: "#FBEAF0" }}>
@@ -290,6 +300,7 @@ function ProductsPage() {
                     <ProductThumb product={p} />
                     <div className="p-2">
                       <div className="text-xs font-medium truncate" style={{ color: "#4B1528" }}>{p.name}</div>
+                      <StarRating size={10} />
                       <div className="text-xs mt-0.5" style={{ color: "#D4537E" }}>₱{p.price}</div>
                     </div>
                   </button>
@@ -328,6 +339,7 @@ function CategoryPage() {
               <ProductThumb product={p} />
               <div className="p-2.5">
                 <div className="text-xs font-medium" style={{ color: "#4B1528" }}>{p.name}</div>
+                <StarRating size={10} />
                 <div className="text-xs mt-1" style={{ color: "#D4537E" }}>₱{p.price}</div>
               </div>
             </button>
@@ -352,6 +364,13 @@ function ProductModal({ id, onClose }) {
     setOrderModal(false);
   }, [id]);
 
+  const imagesLen = products.find((pr) => String(pr.id) === String(id))?.product_images?.length || 0;
+  useEffect(() => {
+    if (imagesLen <= 1) return;
+    const timer = setInterval(() => setImgIdx((i) => (i + 1) % imagesLen), 4000);
+    return () => clearInterval(timer);
+  }, [imagesLen, id]);
+
   if (!id) return null;
   const p = products.find((pr) => String(pr.id) === String(id));
   if (!p) return null;
@@ -364,7 +383,7 @@ function ProductModal({ id, onClose }) {
           <X size={16} color="#993556" />
         </button>
 
-        <div className="p-5 md:p-8 md:flex md:gap-8">
+        <div className="p-5 md:p-8 md:flex md:gap-8 md:items-start">
           <div className="relative rounded-2xl overflow-hidden mb-4 md:mb-0 md:w-1/2 md:shrink-0" style={{ border: "1px solid #F4C0D1" }}>
             {images[imgIdx]?.image_url ? (
               <img src={images[imgIdx].image_url} alt={p.name} className="w-full" style={{ aspectRatio: "1", objectFit: "cover" }} />
@@ -393,7 +412,8 @@ function ProductModal({ id, onClose }) {
 
           <div className="md:w-1/2 md:flex md:flex-col">
             <h2 className="font-medium mb-1 pr-8" style={{ fontSize: 19, color: "#4B1528" }}>{p.name}</h2>
-            <p className="text-sm mb-2" style={{ color: "#72243E" }}>{p.description}</p>
+            <StarRating size={13} />
+            <p className="text-sm mb-2 mt-1.5" style={{ color: "#72243E" }}>{p.description}</p>
             <div className="font-medium mb-4" style={{ fontSize: 20, color: "#D4537E" }}>₱{p.price}</div>
             <button onClick={() => setOrderModal(true)} className="w-full md:w-auto md:px-12 py-3 rounded-full font-medium text-sm mb-6" style={{ background: "#D4537E", color: "#fff" }}>
               Order now
