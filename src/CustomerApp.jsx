@@ -205,6 +205,29 @@ function Header() {
   );
 }
 
+function Footer() {
+  return (
+    <footer style={{ background: "#FBEAF0", borderTop: "1px solid #F4C0D1" }}>
+      <div className={`${WRAP} py-8 flex flex-col items-center gap-3 text-center`}>
+        <div className="flex items-center gap-2">
+          <img src={LOGO} alt="Blueming Crochet" style={{ width: 28, height: 28, borderRadius: "50%", objectFit: "cover" }} />
+          <span className="font-medium text-sm" style={{ color: "#4B1528" }}>Blueming Crochet</span>
+        </div>
+        <p className="text-xs" style={{ color: "#993556" }}>Follow us</p>
+        <div className="flex items-center gap-5">
+          <a href={INSTAGRAM_URL} target="_blank" rel="noreferrer" className="flex items-center gap-1.5 text-xs font-medium" style={{ color: "#D4537E" }}>
+            <Instagram size={15} /> @bluemingcrochet
+          </a>
+          <a href={FACEBOOK_URL} target="_blank" rel="noreferrer" className="flex items-center gap-1.5 text-xs font-medium" style={{ color: "#185FA5" }}>
+            <Facebook size={15} /> Blueming Crochet
+          </a>
+        </div>
+        <p className="text-[11px] mt-2" style={{ color: "#C7A9B5" }}>© {new Date().getFullYear()} Blueming Crochet. All rights reserved.</p>
+      </div>
+    </footer>
+  );
+}
+
 function LoadingScreen() {
   return (
     <div className="min-h-screen flex flex-col items-center justify-center gap-2" style={{ background: "#FFF9FB" }}>
@@ -472,11 +495,12 @@ function AboutPage() {
 }
 
 // ---------- CONTACT ----------
-function FieldInput({ label, ...props }) {
+function FieldInput({ label, error, ...props }) {
   return (
     <div className="mb-4">
       <label className="text-xs font-medium block mb-1.5" style={{ color: "#4B1528" }}>{label}</label>
-      <input {...props} className="w-full px-4 py-2.5 rounded-xl text-sm outline-none" style={{ border: "1px solid #F4C0D1" }} />
+      <input {...props} className="w-full px-4 py-2.5 rounded-xl text-sm outline-none" style={{ border: error ? "1px solid #C0392B" : "1px solid #F4C0D1" }} />
+      {error && <p className="text-[11px] mt-1" style={{ color: "#C0392B" }}>{error}</p>}
     </div>
   );
 }
@@ -486,12 +510,38 @@ function ContactPage() {
   const contact = content.contact || {};
   const [form, setForm] = useState({ full_name: "", address: "", phone: "", email: "", message: "" });
   const [status, setStatus] = useState("idle");
+  const [fieldErrors, setFieldErrors] = useState({});
 
   const update = (field) => (e) => setForm({ ...form, [field]: e.target.value });
+
+  const updatePhone = (e) => {
+    const val = e.target.value.replace(/[^0-9+]/g, "");
+    setForm({ ...form, phone: val });
+    if (fieldErrors.phone) setFieldErrors({ ...fieldErrors, phone: undefined });
+  };
+
+  const updateEmail = (e) => {
+    setForm({ ...form, email: e.target.value });
+    if (fieldErrors.email) setFieldErrors({ ...fieldErrors, email: undefined });
+  };
+
+  const validate = () => {
+    const errors = {};
+    if (form.phone && !/^\+?[0-9]{7,15}$/.test(form.phone)) {
+      errors.phone = "Please enter a valid phone number.";
+    }
+    if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(form.email)) {
+      errors.email = "Please enter a valid email address.";
+    }
+    return errors;
+  };
 
   const submit = async (e) => {
     e.preventDefault();
     if (!form.full_name || !form.email || !form.message) return;
+    const errors = validate();
+    setFieldErrors(errors);
+    if (Object.keys(errors).length > 0) return;
     setStatus("sending");
     try {
       const res = await fetch("https://api.emailjs.com/api/v1.0/email/send", {
@@ -520,8 +570,8 @@ function ContactPage() {
           <form onSubmit={submit}>
             <FieldInput label="Full Name" value={form.full_name} onChange={update("full_name")} required />
             <FieldInput label="Address" value={form.address} onChange={update("address")} />
-            <FieldInput label="Phone Number" value={form.phone} onChange={update("phone")} />
-            <FieldInput label="Email" type="email" value={form.email} onChange={update("email")} required />
+            <FieldInput label="Phone Number" value={form.phone} onChange={updatePhone} inputMode="tel" placeholder="+63 917 000 0000" error={fieldErrors.phone} />
+            <FieldInput label="Email" type="email" value={form.email} onChange={updateEmail} required error={fieldErrors.email} />
             <div className="mb-4">
               <label className="text-xs font-medium block mb-1.5" style={{ color: "#4B1528" }}>Message</label>
               <textarea value={form.message} onChange={update("message")} required rows={4} className="w-full px-4 py-2.5 rounded-xl text-sm outline-none resize-none" style={{ border: "1px solid #F4C0D1" }} />
@@ -577,16 +627,19 @@ export default function BluemingCrochet() {
   return (
     <DataContext.Provider value={{ products, content, categoryImages, openProduct: setActiveProductId }}>
       <BrowserRouter>
-        <div style={{ background: "#FFF9FB" }}>
+        <div style={{ background: "#FFF9FB", minHeight: "100vh", display: "flex", flexDirection: "column" }}>
           <Header />
-          <Routes>
-            <Route path="/" element={<HomePage />} />
-            <Route path="/about" element={<AboutPage />} />
-            <Route path="/products" element={<ProductsPage />} />
-            <Route path="/products/:category" element={<CategoryPage />} />
-            <Route path="/contact" element={<ContactPage />} />
-            <Route path="*" element={<HomePage />} />
-          </Routes>
+          <div style={{ flex: 1 }}>
+            <Routes>
+              <Route path="/" element={<HomePage />} />
+              <Route path="/about" element={<AboutPage />} />
+              <Route path="/products" element={<ProductsPage />} />
+              <Route path="/products/:category" element={<CategoryPage />} />
+              <Route path="/contact" element={<ContactPage />} />
+              <Route path="*" element={<HomePage />} />
+            </Routes>
+          </div>
+          <Footer />
           <ProductModal id={activeProductId} onClose={() => setActiveProductId(null)} />
         </div>
       </BrowserRouter>
