@@ -116,11 +116,37 @@ function ReviewsSection({ reviews }) {
   );
 }
 
+// Reviews layout for the narrow product modal column: carousel on mobile/tablet,
+// stacked rows (not side-by-side columns) on desktop since the modal column is narrow
+function ModalReviews({ reviews }) {
+  const [i, setI] = useState(0);
+  useEffect(() => {
+    const timer = setInterval(() => setI((prev) => (prev + 1) % reviews.length), 4500);
+    return () => clearInterval(timer);
+  }, [reviews.length]);
+
+  return (
+    <>
+      <div className="md:hidden">
+        <ReviewCard r={reviews[i]} />
+        <div className="flex justify-center gap-1.5 mt-4">
+          {reviews.map((_, idx) => (
+            <button key={idx} onClick={() => setI(idx)} style={{ width: 6, height: 6, borderRadius: 999, background: idx === i ? "#D4537E" : "#ED93B1" }} />
+          ))}
+        </div>
+      </div>
+      <div className="hidden md:flex md:flex-col gap-3">
+        {reviews.map((r, idx) => <ReviewCard key={idx} r={r} />)}
+      </div>
+    </>
+  );
+}
+
 function PageBanner({ imageUrl, emoji, title, desc, showTitle = true }) {
   return (
     <div className="w-full mb-2">
       {imageUrl ? (
-        <img src={imageUrl} alt={title} className="w-full object-cover" style={{ height: "clamp(140px, 28vw, 340px)" }} />
+        <img src={imageUrl} alt={title} className="w-full block" style={{ maxHeight: 400, objectFit: "contain", margin: "0 auto" }} />
       ) : (
         <div className="w-full text-center py-8 md:py-10" style={{ background: "#FBEAF0" }}>
           <div style={{ fontSize: 30 }}>{emoji}</div>
@@ -195,9 +221,9 @@ function HomePage() {
 
   return (
     <div>
-      <section className="flex flex-col justify-start" style={{ minHeight: `calc(100vh - ${HEADER_H}px)` }}>
+      <section>
         {home.image_url ? (
-          <img src={home.image_url} alt="Blueming Crochet" className="w-full object-cover" style={{ height: "clamp(160px, 32vw, 420px)" }} />
+          <img src={home.image_url} alt="Blueming Crochet" className="w-full block" style={{ maxHeight: 420, objectFit: "contain", margin: "0 auto" }} />
         ) : (
           <div className="text-center px-6 pt-10 pb-8 md:pt-14 md:pb-10" style={{ background: "linear-gradient(180deg,#F4C0D1 0%,#FBEAF0 100%)" }}>
             <img src={LOGO} alt="Blueming Crochet" className="mx-auto mb-3" style={{ width: 64, height: 64, borderRadius: "50%", objectFit: "cover", border: "3px solid #fff" }} />
@@ -205,10 +231,10 @@ function HomePage() {
           </div>
         )}
 
-        <div className={`${WRAP} py-8 md:py-14 text-center`}>
+        <div className={`${WRAP} py-7 md:py-10 text-center`}>
           <div className="max-w-3xl mx-auto">
             <h2 className="font-medium mb-4" style={{ fontSize: 22, color: "#4B1528" }}>{home.title}</h2>
-            <p className="text-base md:text-lg leading-relaxed mb-8" style={{ color: "#72243E" }}>{home.description}</p>
+            <p className="text-base md:text-lg leading-relaxed mb-7" style={{ color: "#72243E" }}>{home.description}</p>
             <button onClick={() => navigate("/products")} className="w-full sm:w-auto sm:px-16 py-3.5 rounded-full font-medium text-sm" style={{ background: "#D4537E", color: "#fff" }}>
               Shop now
             </button>
@@ -216,7 +242,7 @@ function HomePage() {
         </div>
       </section>
 
-      <section className={`${WRAP} py-14 md:py-20`} style={{ borderTop: "1px solid #F4C0D1" }}>
+      <section className={`${WRAP} py-10 md:py-14`} style={{ borderTop: "1px solid #F4C0D1" }}>
         <p className="text-sm md:text-base font-medium mb-5 md:text-center" style={{ color: "#72243E" }}>Browse by category</p>
         <div className="grid grid-cols-4 md:grid-cols-8 gap-3 md:gap-5">
           {CATEGORIES.map((c) => (
@@ -350,11 +376,11 @@ function ProductModal({ id, onClose }) {
             <SaleBadge tag={p.sale_tag} />
             {images.length > 1 && (
               <>
-                <button onClick={() => setImgIdx((imgIdx - 1 + images.length) % images.length)} className="absolute left-2 top-1/2 -translate-y-1/2 rounded-full p-1" style={{ background: "#fff" }}>
-                  <ChevronLeft size={16} color="#993556" />
+                <button onClick={() => setImgIdx((imgIdx - 1 + images.length) % images.length)} className="absolute left-2 top-1/2 -translate-y-1/2 rounded-full flex items-center justify-center" style={{ background: "#fff", width: 32, height: 32, boxShadow: "0 2px 8px rgba(75,21,40,0.25)" }}>
+                  <ChevronLeft size={18} color="#993556" />
                 </button>
-                <button onClick={() => setImgIdx((imgIdx + 1) % images.length)} className="absolute right-2 top-1/2 -translate-y-1/2 rounded-full p-1" style={{ background: "#fff" }}>
-                  <ChevronRight size={16} color="#993556" />
+                <button onClick={() => setImgIdx((imgIdx + 1) % images.length)} className="absolute right-2 top-1/2 -translate-y-1/2 rounded-full flex items-center justify-center" style={{ background: "#fff", width: 32, height: 32, boxShadow: "0 2px 8px rgba(75,21,40,0.25)" }}>
+                  <ChevronRight size={18} color="#993556" />
                 </button>
                 <div className="absolute bottom-3 left-0 right-0 flex justify-center gap-1.5">
                   {images.map((_, i) => (
@@ -374,9 +400,7 @@ function ProductModal({ id, onClose }) {
             </button>
 
             <h3 className="font-medium text-sm mb-3" style={{ color: "#4B1528" }}>Customer reviews</h3>
-            <div className="max-w-md">
-              <ReviewsSection reviews={REVIEWS_PRODUCT} />
-            </div>
+            <ModalReviews reviews={REVIEWS_PRODUCT} />
           </div>
         </div>
       </div>
