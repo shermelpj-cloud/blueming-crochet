@@ -11,20 +11,25 @@ const CATEGORIES = ["Keychains", "Stuffed Toys", "Bags", "Hats", "Flowers", "Ami
 const ICONS = { Keychains: "🔑", "Stuffed Toys": "🧸", Bags: "👜", Hats: "🧢", Flowers: "🌸", Amigurumi: "🐰", Wearables: "🧣", "Crochet Goodies": "🎀" };
 const SALE_OPTIONS = [
   { value: "", label: "No sale tag" },
-  { value: "10", label: "10% OFF" },
-  { value: "20", label: "20% OFF" },
-  { value: "30", label: "30% OFF" },
-  { value: "40", label: "40% OFF" },
-  { value: "50", label: "50% OFF" },
   { value: "b1t1", label: "Buy 1 Take 1" },
-  { value: "custom", label: "Custom..." },
+  { value: "b1free", label: "Buy 1 Get Free" },
+  ...Array.from({ length: 80 }, (_, i) => ({ value: String(i + 1), label: `${i + 1}% OFF` })),
 ];
-const SALE_LABEL = Object.fromEntries(SALE_OPTIONS.map((o) => [o.value, o.label]));
 
-// If saleTag is a numeric % (10/20/30/40/50) and origPrice is set, compute the
-// discounted price automatically. Returns null when it can't be auto-computed
-// (no orig price, or a non-percent tag like "b1t1"/"custom"/""), so the caller
-// knows to leave the manually-entered price alone.
+// Human-readable label for a sale_tag value: "10" -> "10% OFF", "b1t1" -> "Buy 1 Take 1", etc.
+function saleTagLabel(tag) {
+  if (!tag) return null;
+  if (tag === "b1t1") return "Buy 1 Take 1";
+  if (tag === "b1free") return "Buy 1 Get Free";
+  const pct = Number(tag);
+  if (!isNaN(pct) && pct > 0) return `${pct}% OFF`;
+  return tag;
+}
+
+// If saleTag is a numeric % (1-80) and origPrice is set, compute the discounted
+// price automatically. Returns null when it can't be auto-computed (no orig
+// price, or a non-percent tag like "b1t1"/"b1free"/""), so the caller knows to
+// leave the manually-entered price alone.
 function calcDiscountedPrice(origPrice, saleTag) {
   const pct = Number(saleTag);
   if (!origPrice || saleTag === "" || isNaN(pct) || pct <= 0) return null;
@@ -32,6 +37,7 @@ function calcDiscountedPrice(origPrice, saleTag) {
   if (isNaN(discounted)) return null;
   return String(Math.round(discounted));
 }
+
 
 function authHeaders(token) {
   return { apikey: ANON_KEY, Authorization: `Bearer ${token}` };
@@ -116,7 +122,7 @@ function SaleBadge({ tag }) {
   if (!tag) return <span className="text-[11px]" style={{ color: "#C7A9B5" }}>—</span>;
   return (
     <span className="text-[11px] font-medium px-2.5 py-1 rounded-full flex items-center gap-1 w-fit" style={{ background: "#FBEAF0", color: "#D4537E" }}>
-      <Tag size={10} /> {SALE_LABEL[tag] || tag}
+      <Tag size={10} /> {saleTagLabel(tag)}
     </span>
   );
 }
@@ -144,12 +150,10 @@ export default function BluemingAdmin() {
   const [addVideo, setAddVideo] = useState(null);
   const [editProduct, setEditProduct] = useState(null);
   const [editNewFiles, setEditNewFiles] = useState([]);
-  const [editCustomSaleTag, setEditCustomSaleTag] = useState("");
   const [editVideo, setEditVideo] = useState(null);
   const [deleteProduct, setDeleteProduct] = useState(null);
   const [editSection, setEditSection] = useState(null);
   const [form, setForm] = useState({ name: "", category: CATEGORIES[0], origPrice: "", price: "", size: "", color: "", saleTag: "", description: "", note: "" });
-  const [customSaleTag, setCustomSaleTag] = useState("");
   const [saving, setSaving] = useState(false);
   const [toast, setToast] = useState(null); // { type: 'success' | 'error', message }
 
@@ -192,7 +196,7 @@ export default function BluemingAdmin() {
   }
 
   const filteredProducts = products.filter((p) => categoryFilter === "All" || p.category === categoryFilter);
-  const resetForm = () => { setForm({ name: "", category: CATEGORIES[0], origPrice: "", price: "", size: "", color: "", saleTag: "", description: "", note: "" }); setAddFiles([]); setAddVideo(null); setCustomSaleTag(""); };
+  const resetForm = () => { setForm({ name: "", category: CATEGORIES[0], origPrice: "", price: "", size: "", color: "", saleTag: "", description: "", note: "" }); setAddFiles([]); setAddVideo(null); };
 
   // Add-product: typing Orig. price recomputes Price if a % sale tag is already picked.
   const handleOrigPriceChange = (v) => {
@@ -262,11 +266,10 @@ export default function BluemingAdmin() {
     if (!form.name || !form.price) return;
     setSaving(true);
     try {
-      const finalSaleTag = form.saleTag === "custom" ? customSaleTag.trim() : form.saleTag;
       const res = await authedFetch(`${REST}/products`, {
         method: "POST",
         headers: { ...authHeaders(token), "Content-Type": "application/json", Prefer: "return=representation" },
-        body: JSON.stringify({ name: form.name, category: form.category, price: Number(form.price), orig_price: form.origPrice ? Number(form.origPrice) : null, size: form.size, color: form.color, sale_tag: finalSaleTag, description: form.description, note: form.note, status: "Active" }),
+        body: JSON.stringify({ name: form.name, category: form.category, price: Number(form.price), orig_price: form.origPrice ? Number(form.origPrice) : null, size: form.size, color: form.color, sale_tag: form.saleTag, description: form.description, note: form.note, status: "Active" }),
       }, () => setToken(null));
       const [created] = await res.json();
       await uploadImagesFor(created.id, addFiles, 0);
@@ -285,11 +288,10 @@ export default function BluemingAdmin() {
   const saveEdit = async () => {
     setSaving(true);
     try {
-      const finalSaleTag = editProduct.sale_tag === "custom" ? editCustomSaleTag.trim() : editProduct.sale_tag;
       await authedFetch(`${REST}/products?id=eq.${editProduct.id}`, {
         method: "PATCH",
         headers: { ...authHeaders(token), "Content-Type": "application/json" },
-        body: JSON.stringify({ name: editProduct.name, category: editProduct.category, price: Number(editProduct.price), orig_price: editProduct.orig_price ? Number(editProduct.orig_price) : null, status: editProduct.status, sale_tag: finalSaleTag, description: editProduct.description, size: editProduct.size, color: editProduct.color, note: editProduct.note, video_url: editProduct.video_url }),
+        body: JSON.stringify({ name: editProduct.name, category: editProduct.category, price: Number(editProduct.price), orig_price: editProduct.orig_price ? Number(editProduct.orig_price) : null, status: editProduct.status, sale_tag: editProduct.sale_tag, description: editProduct.description, size: editProduct.size, color: editProduct.color, note: editProduct.note, video_url: editProduct.video_url }),
       }, () => setToken(null));
       const startOrder = (editProduct.product_images?.length || 0);
       await uploadImagesFor(editProduct.id, editNewFiles, startOrder);
@@ -470,9 +472,7 @@ export default function BluemingAdmin() {
                     <td className="py-2 px-3"><Badge label={p.status} /></td>
                     <td className="py-2 px-3">
                       <button onClick={() => {
-                        const isPreset = SALE_OPTIONS.some((o) => o.value === p.sale_tag && o.value !== "custom");
-                        setEditProduct({ ...p, orig_price: p.orig_price ?? "", sale_tag: isPreset ? p.sale_tag : (p.sale_tag ? "custom" : "") });
-                        setEditCustomSaleTag(isPreset ? "" : (p.sale_tag || ""));
+                        setEditProduct({ ...p, orig_price: p.orig_price ?? "" });
                         setEditNewFiles([]);
                         setEditVideo(null);
                       }} className="mr-2"><Pencil size={14} color="#185FA5" /></button>
@@ -581,9 +581,6 @@ export default function BluemingAdmin() {
           {form.origPrice && calcDiscountedPrice(form.origPrice, form.saleTag) !== null && (
             <p className="text-[10px] -mt-1.5 mb-2.5" style={{ color: "#993556" }}>✓ Price auto-computed: ₱{form.origPrice} → ₱{form.price} ({form.saleTag}% off)</p>
           )}
-          {form.saleTag === "custom" && (
-            <Input label="Custom sale tag text" value={customSaleTag} onChange={setCustomSaleTag} placeholder="e.g. 70% OFF or Buy 2 Take 1" />
-          )}
           <button onClick={saveNewProduct} disabled={saving} className="w-full py-2.5 rounded-full font-medium text-xs mt-2 flex items-center justify-center gap-2" style={{ background: "#D4537E", color: "#fff" }}>
             {saving && <Loader2 size={13} className="animate-spin" />} Save product
           </button>
@@ -658,9 +655,6 @@ export default function BluemingAdmin() {
           <SelectField label="Sale tag" value={editProduct.sale_tag} onChange={handleEditSaleTagChange} options={SALE_OPTIONS} />
           {editProduct.orig_price && calcDiscountedPrice(editProduct.orig_price, editProduct.sale_tag) !== null && (
             <p className="text-[10px] -mt-1.5 mb-2.5" style={{ color: "#993556" }}>✓ Price auto-computed: ₱{editProduct.orig_price} → ₱{editProduct.price} ({editProduct.sale_tag}% off)</p>
-          )}
-          {editProduct.sale_tag === "custom" && (
-            <Input label="Custom sale tag text" value={editCustomSaleTag} onChange={setEditCustomSaleTag} placeholder="e.g. 70% OFF or Buy 2 Take 1" />
           )}
           <button onClick={saveEdit} disabled={saving} className="w-full py-2.5 rounded-full font-medium text-xs mt-2 flex items-center justify-center gap-2" style={{ background: "#D4537E", color: "#fff" }}>
             {saving && <Loader2 size={13} className="animate-spin" />} Save changes

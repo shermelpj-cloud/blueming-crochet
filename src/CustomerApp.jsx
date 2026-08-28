@@ -16,7 +16,15 @@ const EMAILJS_PUBLIC_KEY = "kJ6-f5MeUK8ouDHzx";
 
 const CATEGORIES = ["Keychains", "Stuffed Toys", "Bags", "Hats", "Flowers", "Amigurumi", "Wearables", "Crochet Goodies"];
 const ICONS = { Keychains: "🔑", "Stuffed Toys": "🧸", Bags: "👜", Hats: "🧢", Flowers: "🌸", Amigurumi: "🐰", Wearables: "🧣", "Crochet Goodies": "🎀" };
-const SALE_LABELS = { "10": "10% OFF", "20": "20% OFF", "30": "30% OFF", "40": "40% OFF", "50": "50% OFF", b1t1: "Buy 1 Take 1" };
+// Human-readable label for a sale_tag value: "10" -> "10% OFF", "b1t1" -> "Buy 1 Take 1", etc.
+function saleTagLabel(tag) {
+  if (!tag) return null;
+  if (tag === "b1t1") return "Buy 1 Take 1";
+  if (tag === "b1free") return "Buy 1 Get Free";
+  const pct = Number(tag);
+  if (!isNaN(pct) && pct > 0) return `${pct}% OFF`;
+  return tag;
+}
 
 const WRAP = "w-full max-w-[1400px] mx-auto px-4 sm:px-6 md:px-[60px]";
 const HEADER_H = 64;
@@ -53,7 +61,7 @@ function SaleBadge({ tag }) {
   if (!tag) return null;
   return (
     <span className="absolute top-2 left-2 text-[10px] font-medium px-2 py-1 rounded-full z-10" style={{ background: "#D4537E", color: "#fff" }}>
-      {SALE_LABELS[tag] || tag}
+      {saleTagLabel(tag)}
     </span>
   );
 }
