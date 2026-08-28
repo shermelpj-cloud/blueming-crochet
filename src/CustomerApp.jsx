@@ -22,15 +22,12 @@ const WRAP = "w-full max-w-[1400px] mx-auto px-4 sm:px-6 md:px-[60px]";
 const HEADER_H = 64;
 const LOGO = "/logo.jpg";
 
-const REVIEWS_SHOP = [
-  { name: "Anna R.", lang: "EN", text: "Super cute and well made! The stitching is so neat. Will definitely order again." },
-  { name: "Mika D.", lang: "TL", text: "Ang ganda ng gawa, sulit na sulit! Mabilis din sumagot pag nagmessage ako sa Instagram." },
-  { name: "Joyce T.", lang: "EN", text: "Ordered a keychain as a gift and my friend loved it. So soft and cute in person!" },
-];
-const REVIEWS_PRODUCT = [
-  { name: "Bea M.", lang: "EN", text: "Exactly as pictured, even cuter in person. Packed very securely too!" },
-  { name: "Rhea S.", lang: "TL", text: "Grabe ang lambot at gandang gawa, sulit sa price. Order ulit ako next month!" },
-  { name: "Cathy L.", lang: "EN", text: "Fast response on Instagram and the item arrived well-packed. Thank you!" },
+const REVIEWS = [
+  { name: "Ella M.", text: "Ang cute grabe! Sobrang lambot ng gawa and true to size pa. Sulit talaga, order ulit ako soon!" },
+  { name: "Jaymie R.", text: "Super fast yung reply sa Instagram, and yung item pareho pareho sa picture. Solid packaging din, no damage pagdating!" },
+  { name: "Kevin D.", text: "First time ko mag-order dito and hindi ako nagsisi. Ang husay ng finishing, parang store-bought pero mas may soul kasi handmade." },
+  { name: "Trisha A.", text: "Binili ko as gift for my mom, sobrang saya niya nung nakita niya! Thank you so much, will definitely recommend to friends." },
+  { name: "Marco S.", text: "Grabe ang patience niya sa customization ko, sinunod lahat ng gusto ko. Worth every peso, promise!" },
 ];
 
 const ABOUT_HIGHLIGHTS = [
@@ -87,6 +84,24 @@ function StarRating({ size = 11 }) {
   );
 }
 
+function ProductMeta({ product, compact = false }) {
+  return (
+    <>
+      {(product.size || product.color) && (
+        <div className={compact ? "text-[10px]" : "text-xs"} style={{ color: "#72243E" }}>
+          {product.size && <span className="mr-2">Size: <b>{product.size}</b></span>}
+          {product.color && <span>Color: <b>{product.color}</b></span>}
+        </div>
+      )}
+      {product.note && (
+        <p className={compact ? "text-[10px]" : "text-xs"} style={{ color: "#72243E" }}>
+          <span style={{ color: "#C0392B", fontWeight: 700 }}>NOTE: </span>{product.note}
+        </p>
+      )}
+    </>
+  );
+}
+
 function ReviewCard({ r }) {
   return (
     <div className="rounded-2xl p-6 md:p-8 text-center h-full flex flex-col justify-center" style={{ background: "#FBEAF0" }}>
@@ -95,19 +110,29 @@ function ReviewCard({ r }) {
       </div>
       <p className="text-sm md:text-base italic mb-3" style={{ color: "#4B1528" }}>"{r.text}"</p>
       <div className="text-xs md:text-sm font-medium" style={{ color: "#993556" }}>
-        {r.name} <span style={{ color: "#185FA5" }}>· {r.lang === "TL" ? "🇵🇭 Tagalog" : "🇬🇧 English"}</span>
+        {r.name} <span style={{ color: "#185FA5" }}>· 🇵🇭 Philippines</span>
       </div>
     </div>
   );
 }
 
-// Auto-advancing carousel for small/medium screens; all-in-one-row grid for desktop
+// Auto-sliding on every screen size: single card on mobile/tablet,
+// a rotating window of 3 (out of 5) on desktop
 function ReviewsSection({ reviews }) {
   const [i, setI] = useState(0);
+  const [startIdx, setStartIdx] = useState(0);
+
   useEffect(() => {
-    const timer = setInterval(() => setI((prev) => (prev + 1) % reviews.length), 4500);
-    return () => clearInterval(timer);
+    const t1 = setInterval(() => setI((prev) => (prev + 1) % reviews.length), 4500);
+    return () => clearInterval(t1);
   }, [reviews.length]);
+
+  useEffect(() => {
+    const t2 = setInterval(() => setStartIdx((prev) => (prev + 1) % reviews.length), 4500);
+    return () => clearInterval(t2);
+  }, [reviews.length]);
+
+  const windowReviews = [0, 1, 2].map((offset) => reviews[(startIdx + offset) % reviews.length]);
 
   return (
     <>
@@ -120,7 +145,7 @@ function ReviewsSection({ reviews }) {
         </div>
       </div>
       <div className="hidden md:grid md:grid-cols-3 gap-5">
-        {reviews.map((r, idx) => <ReviewCard key={idx} r={r} />)}
+        {windowReviews.map((r, idx) => <ReviewCard key={`${startIdx}-${idx}`} r={r} />)}
       </div>
     </>
   );
@@ -130,7 +155,9 @@ function PageBanner({ imageUrl, emoji, title, desc, showTitle = true }) {
   return (
     <div className="w-full mb-2">
       {imageUrl ? (
-        <img src={imageUrl} alt={title} className="w-full block" style={{ maxHeight: 400, objectFit: "contain", margin: "0 auto" }} />
+        <div className="w-full flex items-center justify-center min-h-[220px] sm:min-h-[260px] md:min-h-0" style={{ background: "#FBEAF0" }}>
+          <img src={imageUrl} alt={title} className="w-full block" style={{ maxHeight: 400, objectFit: "contain", margin: "0 auto" }} />
+        </div>
       ) : (
         <div className="w-full text-center py-8 md:py-10" style={{ background: "#FBEAF0" }}>
           <div style={{ fontSize: 30 }}>{emoji}</div>
@@ -230,7 +257,9 @@ function HomePage() {
     <div>
       <section>
         {home.image_url ? (
-          <img src={home.image_url} alt="Blueming Crochet" className="w-full block" style={{ maxHeight: 420, objectFit: "contain", margin: "0 auto" }} />
+          <div className="w-full flex items-center justify-center min-h-[220px] sm:min-h-[260px] md:min-h-0" style={{ background: "#FBEAF0" }}>
+            <img src={home.image_url} alt="Blueming Crochet" className="w-full block" style={{ maxHeight: 420, objectFit: "contain", margin: "0 auto" }} />
+          </div>
         ) : (
           <div className="text-center px-6 pt-10 pb-8 md:pt-14 md:pb-10" style={{ background: "linear-gradient(180deg,#F4C0D1 0%,#FBEAF0 100%)" }}>
             <img src={LOGO} alt="Blueming Crochet" className="mx-auto mb-3" style={{ width: 64, height: 64, borderRadius: "50%", objectFit: "cover", border: "3px solid #fff" }} />
@@ -298,6 +327,7 @@ function ProductsPage() {
                     <div className="p-2">
                       <div className="text-xs font-medium truncate" style={{ color: "#4B1528" }}>{p.name}</div>
                       <StarRating size={10} />
+                      <ProductMeta product={p} compact />
                       <div className="text-xs mt-0.5" style={{ color: "#D4537E" }}>₱{p.price}</div>
                     </div>
                   </button>
@@ -313,7 +343,7 @@ function ProductsPage() {
 
       <div className={`${WRAP} pb-14`}>
         <h3 className="font-medium text-sm mb-5 text-center" style={{ color: "#4B1528" }}>What our customers say</h3>
-        <ReviewsSection reviews={REVIEWS_SHOP} />
+        <ReviewsSection reviews={REVIEWS} />
       </div>
     </div>
   );
@@ -337,6 +367,7 @@ function CategoryPage() {
               <div className="p-2.5">
                 <div className="text-xs font-medium" style={{ color: "#4B1528" }}>{p.name}</div>
                 <StarRating size={10} />
+                <ProductMeta product={p} compact />
                 <div className="text-xs mt-1" style={{ color: "#D4537E" }}>₱{p.price}</div>
               </div>
             </button>
@@ -412,18 +443,8 @@ function ProductModal({ id, onClose }) {
               <h2 className="font-medium mb-1 pr-8" style={{ fontSize: 19, color: "#4B1528" }}>{p.name}</h2>
               <StarRating size={13} />
               <p className="text-sm mb-2 mt-1.5" style={{ color: "#72243E" }}>{p.description}</p>
-              {(p.size || p.color) && (
-                <div className="text-xs mb-2" style={{ color: "#72243E" }}>
-                  {p.size && <span className="mr-3">Size: <b>{p.size}</b></span>}
-                  {p.color && <span>Color: <b>{p.color}</b></span>}
-                </div>
-              )}
-              <div className="font-medium mb-3" style={{ fontSize: 20, color: "#D4537E" }}>₱{p.price}</div>
-              {p.note && (
-                <p className="text-xs mb-4 leading-relaxed" style={{ color: "#72243E" }}>
-                  <span style={{ color: "#C0392B", fontWeight: 700 }}>NOTE: </span>{p.note}
-                </p>
-              )}
+              <ProductMeta product={p} />
+              <div className="font-medium mb-3 mt-2" style={{ fontSize: 20, color: "#D4537E" }}>₱{p.price}</div>
               <button onClick={() => setOrderModal(true)} className="w-full md:w-auto md:px-12 py-3 rounded-full font-medium text-sm" style={{ background: "#D4537E", color: "#fff" }}>
                 Order now
               </button>
@@ -432,7 +453,7 @@ function ProductModal({ id, onClose }) {
 
           <div className="mt-7 md:mt-9">
             <h3 className="font-medium text-sm mb-3" style={{ color: "#4B1528" }}>Customer reviews</h3>
-            <ReviewsSection reviews={REVIEWS_PRODUCT} />
+            <ReviewsSection reviews={REVIEWS} />
           </div>
         </div>
       </div>
@@ -469,7 +490,7 @@ function AboutPage() {
   return (
     <div style={{ minHeight: "100vh", background: "#FFF9FB" }}>
       <PageBanner imageUrl={about.image_url} emoji="🌷" title={about.title || "About Blueming Crochet"} desc={about.description || DEFAULT_ABOUT_TEXT} />
-      <div className={`${WRAP} pb-16`}>
+      <div className={`${WRAP} pb-6`}>
         <div className="grid grid-cols-2 md:grid-cols-4 gap-3 md:gap-4">
           {ABOUT_HIGHLIGHTS.map((h) => (
             <div key={h.label} className="rounded-2xl p-5 md:p-6 text-center" style={{ background: "#FBEAF0" }}>
@@ -478,6 +499,10 @@ function AboutPage() {
             </div>
           ))}
         </div>
+      </div>
+      <div className={`${WRAP} pb-14 md:pb-20`}>
+        <h3 className="font-medium text-sm mb-5 text-center" style={{ color: "#4B1528" }}>What our customers say</h3>
+        <ReviewsSection reviews={REVIEWS} />
       </div>
     </div>
   );
@@ -572,6 +597,10 @@ function ContactPage() {
             {status === "error" && <p className="text-xs text-center mt-3" style={{ color: "#C0392B" }}>Something went wrong. Please try again or message us on Instagram/Facebook.</p>}
           </form>
         </div>
+      </div>
+      <div className={`${WRAP} pb-14 md:pb-20`}>
+        <h3 className="font-medium text-sm mb-5 text-center" style={{ color: "#4B1528" }}>What our customers say</h3>
+        <ReviewsSection reviews={REVIEWS} />
       </div>
     </div>
   );
