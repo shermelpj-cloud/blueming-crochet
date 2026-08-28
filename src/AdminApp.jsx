@@ -21,6 +21,18 @@ const SALE_OPTIONS = [
 ];
 const SALE_LABEL = Object.fromEntries(SALE_OPTIONS.map((o) => [o.value, o.label]));
 
+// If saleTag is a numeric % (10/20/30/40/50) and origPrice is set, compute the
+// discounted price automatically. Returns null when it can't be auto-computed
+// (no orig price, or a non-percent tag like "b1t1"/"custom"/""), so the caller
+// knows to leave the manually-entered price alone.
+function calcDiscountedPrice(origPrice, saleTag) {
+  const pct = Number(saleTag);
+  if (!origPrice || saleTag === "" || isNaN(pct) || pct <= 0) return null;
+  const discounted = Number(origPrice) * (1 - pct / 100);
+  if (isNaN(discounted)) return null;
+  return String(Math.round(discounted));
+}
+
 function authHeaders(token) {
   return { apikey: ANON_KEY, Authorization: `Bearer ${token}` };
 }
@@ -136,7 +148,7 @@ export default function BluemingAdmin() {
   const [editVideo, setEditVideo] = useState(null);
   const [deleteProduct, setDeleteProduct] = useState(null);
   const [editSection, setEditSection] = useState(null);
-  const [form, setForm] = useState({ name: "", category: CATEGORIES[0], price: "", size: "", color: "", saleTag: "", description: "", note: "" });
+  const [form, setForm] = useState({ name: "", category: CATEGORIES[0], origPrice: "", price: "", size: "", color: "", saleTag: "", description: "", note: "" });
   const [customSaleTag, setCustomSaleTag] = useState("");
   const [saving, setSaving] = useState(false);
   const [toast, setToast] = useState(null); // { type: 'success' | 'error', message }
@@ -180,7 +192,35 @@ export default function BluemingAdmin() {
   }
 
   const filteredProducts = products.filter((p) => categoryFilter === "All" || p.category === categoryFilter);
-  const resetForm = () => { setForm({ name: "", category: CATEGORIES[0], price: "", size: "", color: "", saleTag: "", description: "", note: "" }); setAddFiles([]); setAddVideo(null); setCustomSaleTag(""); };
+  const resetForm = () => { setForm({ name: "", category: CATEGORIES[0], origPrice: "", price: "", size: "", color: "", saleTag: "", description: "", note: "" }); setAddFiles([]); setAddVideo(null); setCustomSaleTag(""); };
+
+  // Add-product: typing Orig. price recomputes Price if a % sale tag is already picked.
+  const handleOrigPriceChange = (v) => {
+    setForm((f) => {
+      const auto = calcDiscountedPrice(v, f.saleTag);
+      return { ...f, origPrice: v, price: auto !== null ? auto : f.price };
+    });
+  };
+  // Add-product: picking a % sale tag recomputes Price if Orig. price is already filled.
+  const handleSaleTagChangeAdd = (v) => {
+    setForm((f) => {
+      const auto = calcDiscountedPrice(f.origPrice, v);
+      return { ...f, saleTag: v, price: auto !== null ? auto : f.price };
+    });
+  };
+  // Same two, for the Edit modal.
+  const handleEditOrigPriceChange = (v) => {
+    setEditProduct((p) => {
+      const auto = calcDiscountedPrice(v, p.sale_tag);
+      return { ...p, orig_price: v, price: auto !== null ? auto : p.price };
+    });
+  };
+  const handleEditSaleTagChange = (v) => {
+    setEditProduct((p) => {
+      const auto = calcDiscountedPrice(p.orig_price, v);
+      return { ...p, sale_tag: v, price: auto !== null ? auto : p.price };
+    });
+  };
 
   const uploadImagesFor = async (productId, files, startOrder) => {
     for (let i = 0; i < files.length; i++) {
@@ -226,7 +266,7 @@ export default function BluemingAdmin() {
       const res = await authedFetch(`${REST}/products`, {
         method: "POST",
         headers: { ...authHeaders(token), "Content-Type": "application/json", Prefer: "return=representation" },
-        body: JSON.stringify({ name: form.name, category: form.category, price: Number(form.price), size: form.size, color: form.color, sale_tag: finalSaleTag, description: form.description, note: form.note, status: "Active" }),
+        body: JSON.stringify({ name: form.name, category: form.category, price: Number(form.price), orig_price: form.origPrice ? Number(form.origPrice) : null, size: form.size, color: form.color, sale_tag: finalSaleTag, description: form.description, note: form.note, status: "Active" }),
       }, () => setToken(null));
       const [created] = await res.json();
       await uploadImagesFor(created.id, addFiles, 0);
@@ -249,7 +289,7 @@ export default function BluemingAdmin() {
       await authedFetch(`${REST}/products?id=eq.${editProduct.id}`, {
         method: "PATCH",
         headers: { ...authHeaders(token), "Content-Type": "application/json" },
-        body: JSON.stringify({ name: editProduct.name, category: editProduct.category, price: Number(editProduct.price), status: editProduct.status, sale_tag: finalSaleTag, description: editProduct.description, size: editProduct.size, color: editProduct.color, note: editProduct.note, video_url: editProduct.video_url }),
+        body: JSON.stringify({ name: editProduct.name, category: editProduct.category, price: Number(editProduct.price), orig_price: editProduct.orig_price ? Number(editProduct.orig_price) : null, status: editProduct.status, sale_tag: finalSaleTag, description: editProduct.description, size: editProduct.size, color: editProduct.color, note: editProduct.note, video_url: editProduct.video_url }),
       }, () => setToken(null));
       const startOrder = (editProduct.product_images?.length || 0);
       await uploadImagesFor(editProduct.id, editNewFiles, startOrder);
@@ -420,13 +460,18 @@ export default function BluemingAdmin() {
                     <td className="py-2 px-3"><Thumb url={p.product_images?.[0]?.image_url} /></td>
                     <td className="py-2 px-3" style={{ color: "#4B1528" }}>{p.name}</td>
                     <td className="py-2 px-3" style={{ color: "#72243E" }}>{p.category}</td>
-                    <td className="py-2 px-3" style={{ color: "#D4537E" }}>₱{p.price}</td>
+                    <td className="py-2 px-3" style={{ color: "#D4537E" }}>
+                      {p.orig_price && Number(p.orig_price) > Number(p.price) && (
+                        <span className="line-through mr-1.5" style={{ color: "#C7A9B5" }}>₱{p.orig_price}</span>
+                      )}
+                      ₱{p.price}
+                    </td>
                     <td className="py-2 px-3"><SaleBadge tag={p.sale_tag} /></td>
                     <td className="py-2 px-3"><Badge label={p.status} /></td>
                     <td className="py-2 px-3">
                       <button onClick={() => {
                         const isPreset = SALE_OPTIONS.some((o) => o.value === p.sale_tag && o.value !== "custom");
-                        setEditProduct({ ...p, sale_tag: isPreset ? p.sale_tag : (p.sale_tag ? "custom" : "") });
+                        setEditProduct({ ...p, orig_price: p.orig_price ?? "", sale_tag: isPreset ? p.sale_tag : (p.sale_tag ? "custom" : "") });
                         setEditCustomSaleTag(isPreset ? "" : (p.sale_tag || ""));
                         setEditNewFiles([]);
                         setEditVideo(null);
@@ -521,15 +566,21 @@ export default function BluemingAdmin() {
           </div>
           <SelectField label="Category" value={form.category} onChange={(v) => setForm({ ...form, category: v })} options={CATEGORIES.map((c) => ({ value: c, label: c }))} />
           <div className="grid grid-cols-2 gap-2">
+            <Input label="Orig. price (optional)" value={form.origPrice} onChange={handleOrigPriceChange} placeholder="e.g. 200" />
             <Input label="Price" value={form.price} onChange={(v) => setForm({ ...form, price: v })} />
-            <Input label="Size" value={form.size} onChange={(v) => setForm({ ...form, size: v })} />
           </div>
-          <Input label="Color/variation" value={form.color} onChange={(v) => setForm({ ...form, color: v })} />
+          <div className="grid grid-cols-2 gap-2">
+            <Input label="Size" value={form.size} onChange={(v) => setForm({ ...form, size: v })} />
+            <Input label="Color/variation" value={form.color} onChange={(v) => setForm({ ...form, color: v })} />
+          </div>
           <div className="mb-2.5">
             <label className="text-[11px] block mb-1" style={{ color: "#72243E" }}>Note (optional — e.g. "We accept customization for size and color")</label>
             <textarea value={form.note} onChange={(e) => setForm({ ...form, note: e.target.value })} rows={2} className="w-full px-3 py-2 rounded-lg text-xs outline-none resize-none" style={{ border: "1px solid #F4C0D1" }} />
           </div>
-          <SelectField label="Sale tag" value={form.saleTag} onChange={(v) => setForm({ ...form, saleTag: v })} options={SALE_OPTIONS} />
+          <SelectField label="Sale tag" value={form.saleTag} onChange={handleSaleTagChangeAdd} options={SALE_OPTIONS} />
+          {form.origPrice && calcDiscountedPrice(form.origPrice, form.saleTag) !== null && (
+            <p className="text-[10px] -mt-1.5 mb-2.5" style={{ color: "#993556" }}>✓ Price auto-computed: ₱{form.origPrice} → ₱{form.price} ({form.saleTag}% off)</p>
+          )}
           {form.saleTag === "custom" && (
             <Input label="Custom sale tag text" value={customSaleTag} onChange={setCustomSaleTag} placeholder="e.g. 70% OFF or Buy 2 Take 1" />
           )}
@@ -592,9 +643,10 @@ export default function BluemingAdmin() {
           </div>
           <SelectField label="Category" value={editProduct.category} onChange={(v) => setEditProduct({ ...editProduct, category: v })} options={CATEGORIES.map((c) => ({ value: c, label: c }))} />
           <div className="grid grid-cols-2 gap-2">
+            <Input label="Orig. price (optional)" value={editProduct.orig_price ?? ""} onChange={handleEditOrigPriceChange} placeholder="e.g. 200" />
             <Input label="Price" value={editProduct.price} onChange={(v) => setEditProduct({ ...editProduct, price: v })} />
-            <SelectField label="Status" value={editProduct.status} onChange={(v) => setEditProduct({ ...editProduct, status: v })} options={[{ value: "Active", label: "Active" }, { value: "Draft", label: "Draft" }]} />
           </div>
+          <SelectField label="Status" value={editProduct.status} onChange={(v) => setEditProduct({ ...editProduct, status: v })} options={[{ value: "Active", label: "Active" }, { value: "Draft", label: "Draft" }]} />
           <div className="grid grid-cols-2 gap-2">
             <Input label="Size" value={editProduct.size || ""} onChange={(v) => setEditProduct({ ...editProduct, size: v })} />
             <Input label="Color/variation" value={editProduct.color || ""} onChange={(v) => setEditProduct({ ...editProduct, color: v })} />
@@ -603,7 +655,10 @@ export default function BluemingAdmin() {
             <label className="text-[11px] block mb-1" style={{ color: "#72243E" }}>Note (optional — e.g. "We accept customization for size and color")</label>
             <textarea value={editProduct.note || ""} onChange={(e) => setEditProduct({ ...editProduct, note: e.target.value })} rows={2} className="w-full px-3 py-2 rounded-lg text-xs outline-none resize-none" style={{ border: "1px solid #F4C0D1" }} />
           </div>
-          <SelectField label="Sale tag" value={editProduct.sale_tag} onChange={(v) => setEditProduct({ ...editProduct, sale_tag: v })} options={SALE_OPTIONS} />
+          <SelectField label="Sale tag" value={editProduct.sale_tag} onChange={handleEditSaleTagChange} options={SALE_OPTIONS} />
+          {editProduct.orig_price && calcDiscountedPrice(editProduct.orig_price, editProduct.sale_tag) !== null && (
+            <p className="text-[10px] -mt-1.5 mb-2.5" style={{ color: "#993556" }}>✓ Price auto-computed: ₱{editProduct.orig_price} → ₱{editProduct.price} ({editProduct.sale_tag}% off)</p>
+          )}
           {editProduct.sale_tag === "custom" && (
             <Input label="Custom sale tag text" value={editCustomSaleTag} onChange={setEditCustomSaleTag} placeholder="e.g. 70% OFF or Buy 2 Take 1" />
           )}

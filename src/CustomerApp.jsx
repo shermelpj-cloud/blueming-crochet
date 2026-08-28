@@ -58,6 +58,27 @@ function SaleBadge({ tag }) {
   );
 }
 
+// Shows the current price, plus a smaller struck-through gray original price
+// when orig_price is set and higher than the current price.
+function PriceDisplay({ product, large = false }) {
+  const hasDiscount = product.orig_price && Number(product.orig_price) > Number(product.price);
+  return (
+    <div className={`flex items-baseline ${large ? "gap-2 mb-4" : "gap-1.5 mt-1.5"}`}>
+      {hasDiscount && (
+        <span className={large ? "text-sm line-through" : "text-[10px] line-through"} style={{ color: "#C7A9B5" }}>
+          ₱{product.orig_price}
+        </span>
+      )}
+      <span
+        className={large ? "font-medium" : `font-semibold ${hasDiscount ? "text-sm" : "text-xs"}`}
+        style={large ? { fontSize: 20, color: "#D4537E" } : { color: "#D4537E" }}
+      >
+        ₱{product.price}
+      </span>
+    </div>
+  );
+}
+
 function ProductThumb({ product, size = "100%" }) {
   const img = product?.product_images?.[0]?.image_url;
   return (
@@ -380,7 +401,7 @@ function ProductsPage() {
                       <div className="text-xs font-medium truncate" style={{ color: "#4B1528" }}>{p.name}</div>
                       <div className="mt-1"><StarRating size={10} /></div>
                       <ProductMeta product={p} compact />
-                      <div className="text-xs mt-1.5" style={{ color: "#D4537E" }}>₱{p.price}</div>
+                      <PriceDisplay product={p} />
                     </div>
                   </button>
                 ))}
@@ -422,7 +443,7 @@ function CategoryPage() {
                 <div className="text-xs font-medium" style={{ color: "#4B1528" }}>{p.name}</div>
                 <div className="mt-1"><StarRating size={10} /></div>
                 <ProductMeta product={p} compact />
-                <div className="text-xs mt-1.5" style={{ color: "#D4537E" }}>₱{p.price}</div>
+                <PriceDisplay product={p} />
               </div>
             </button>
           ))}
@@ -496,7 +517,7 @@ function ProductModal({ id, onClose }) {
               <StarRating size={13} />
               <p className="text-sm mb-1 mt-2.5" style={{ color: "#72243E" }}>{p.description}</p>
               <div className="mb-3"><ProductMeta product={p} /></div>
-              <div className="font-medium mb-4" style={{ fontSize: 20, color: "#D4537E" }}>₱{p.price}</div>
+              <PriceDisplay product={p} large />
               <button onClick={() => setOrderModal(true)} className="w-full md:w-auto md:px-12 py-3 rounded-full font-medium text-sm" style={{ background: "#D4537E", color: "#fff" }}>
                 Order now
               </button>
