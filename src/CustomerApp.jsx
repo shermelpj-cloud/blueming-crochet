@@ -126,32 +126,6 @@ function ReviewsSection({ reviews }) {
   );
 }
 
-// Reviews layout for the narrow product modal column: carousel on mobile/tablet,
-// stacked rows (not side-by-side columns) on desktop since the modal column is narrow
-function ModalReviews({ reviews }) {
-  const [i, setI] = useState(0);
-  useEffect(() => {
-    const timer = setInterval(() => setI((prev) => (prev + 1) % reviews.length), 4500);
-    return () => clearInterval(timer);
-  }, [reviews.length]);
-
-  return (
-    <>
-      <div className="md:hidden">
-        <ReviewCard r={reviews[i]} />
-        <div className="flex justify-center gap-1.5 mt-4">
-          {reviews.map((_, idx) => (
-            <button key={idx} onClick={() => setI(idx)} style={{ width: 6, height: 6, borderRadius: 999, background: idx === i ? "#D4537E" : "#ED93B1" }} />
-          ))}
-        </div>
-      </div>
-      <div className="hidden md:flex md:flex-col gap-3">
-        {reviews.map((r, idx) => <ReviewCard key={idx} r={r} />)}
-      </div>
-    </>
-  );
-}
-
 function PageBanner({ imageUrl, emoji, title, desc, showTitle = true }) {
   return (
     <div className="w-full mb-2">
@@ -406,44 +380,59 @@ function ProductModal({ id, onClose }) {
           <X size={16} color="#993556" />
         </button>
 
-        <div className="p-5 md:p-8 md:flex md:gap-8 md:items-start">
-          <div className="relative rounded-2xl overflow-hidden mb-4 md:mb-0 md:w-1/2 md:shrink-0" style={{ border: "1px solid #F4C0D1" }}>
-            {images[imgIdx]?.image_url ? (
-              <img src={images[imgIdx].image_url} alt={p.name} className="w-full" style={{ aspectRatio: "1", objectFit: "cover" }} />
-            ) : (
-              <div style={{ width: "100%", aspectRatio: "1", background: "#F4C0D1" }} className="flex items-center justify-center">
-                <Heart size={28} color="#993556" fill="#993556" opacity={0.25} />
-              </div>
-            )}
-            <SaleBadge tag={p.sale_tag} />
-            {images.length > 1 && (
-              <>
-                <button onClick={() => setImgIdx((imgIdx - 1 + images.length) % images.length)} className="absolute left-2 top-1/2 -translate-y-1/2 rounded-full flex items-center justify-center" style={{ background: "#fff", width: 32, height: 32, boxShadow: "0 2px 8px rgba(75,21,40,0.25)" }}>
-                  <ChevronLeft size={18} color="#993556" />
-                </button>
-                <button onClick={() => setImgIdx((imgIdx + 1) % images.length)} className="absolute right-2 top-1/2 -translate-y-1/2 rounded-full flex items-center justify-center" style={{ background: "#fff", width: 32, height: 32, boxShadow: "0 2px 8px rgba(75,21,40,0.25)" }}>
-                  <ChevronRight size={18} color="#993556" />
-                </button>
-                <div className="absolute bottom-3 left-0 right-0 flex justify-center gap-1.5">
-                  {images.map((_, i) => (
-                    <div key={i} style={{ width: 6, height: 6, borderRadius: 999, background: i === imgIdx ? "#D4537E" : "#fff" }} />
-                  ))}
+        <div className="p-5 md:p-8">
+          <div className="md:flex md:gap-8 md:items-start">
+            <div className="relative rounded-2xl overflow-hidden mb-4 md:mb-0 md:w-1/2 md:shrink-0" style={{ border: "1px solid #F4C0D1" }}>
+              {images[imgIdx]?.image_url ? (
+                <img src={images[imgIdx].image_url} alt={p.name} className="w-full" style={{ aspectRatio: "1", objectFit: "cover" }} />
+              ) : (
+                <div style={{ width: "100%", aspectRatio: "1", background: "#F4C0D1" }} className="flex items-center justify-center">
+                  <Heart size={28} color="#993556" fill="#993556" opacity={0.25} />
                 </div>
-              </>
-            )}
+              )}
+              <SaleBadge tag={p.sale_tag} />
+              {images.length > 1 && (
+                <>
+                  <button onClick={() => setImgIdx((imgIdx - 1 + images.length) % images.length)} className="absolute left-2 top-1/2 -translate-y-1/2 rounded-full flex items-center justify-center" style={{ background: "#fff", width: 32, height: 32, boxShadow: "0 2px 8px rgba(75,21,40,0.25)" }}>
+                    <ChevronLeft size={18} color="#993556" />
+                  </button>
+                  <button onClick={() => setImgIdx((imgIdx + 1) % images.length)} className="absolute right-2 top-1/2 -translate-y-1/2 rounded-full flex items-center justify-center" style={{ background: "#fff", width: 32, height: 32, boxShadow: "0 2px 8px rgba(75,21,40,0.25)" }}>
+                    <ChevronRight size={18} color="#993556" />
+                  </button>
+                  <div className="absolute bottom-3 left-0 right-0 flex justify-center gap-1.5">
+                    {images.map((_, i) => (
+                      <div key={i} style={{ width: 6, height: 6, borderRadius: 999, background: i === imgIdx ? "#D4537E" : "#fff" }} />
+                    ))}
+                  </div>
+                </>
+              )}
+            </div>
+
+            <div className="md:w-1/2 md:flex md:flex-col">
+              <h2 className="font-medium mb-1 pr-8" style={{ fontSize: 19, color: "#4B1528" }}>{p.name}</h2>
+              <StarRating size={13} />
+              <p className="text-sm mb-2 mt-1.5" style={{ color: "#72243E" }}>{p.description}</p>
+              {(p.size || p.color) && (
+                <div className="text-xs mb-2" style={{ color: "#72243E" }}>
+                  {p.size && <span className="mr-3">Size: <b>{p.size}</b></span>}
+                  {p.color && <span>Color: <b>{p.color}</b></span>}
+                </div>
+              )}
+              <div className="font-medium mb-3" style={{ fontSize: 20, color: "#D4537E" }}>₱{p.price}</div>
+              {p.note && (
+                <p className="text-xs mb-4 leading-relaxed" style={{ color: "#72243E" }}>
+                  <span style={{ color: "#C0392B", fontWeight: 700 }}>NOTE: </span>{p.note}
+                </p>
+              )}
+              <button onClick={() => setOrderModal(true)} className="w-full md:w-auto md:px-12 py-3 rounded-full font-medium text-sm" style={{ background: "#D4537E", color: "#fff" }}>
+                Order now
+              </button>
+            </div>
           </div>
 
-          <div className="md:w-1/2 md:flex md:flex-col">
-            <h2 className="font-medium mb-1 pr-8" style={{ fontSize: 19, color: "#4B1528" }}>{p.name}</h2>
-            <StarRating size={13} />
-            <p className="text-sm mb-2 mt-1.5" style={{ color: "#72243E" }}>{p.description}</p>
-            <div className="font-medium mb-4" style={{ fontSize: 20, color: "#D4537E" }}>₱{p.price}</div>
-            <button onClick={() => setOrderModal(true)} className="w-full md:w-auto md:px-12 py-3 rounded-full font-medium text-sm mb-6" style={{ background: "#D4537E", color: "#fff" }}>
-              Order now
-            </button>
-
+          <div className="mt-7 md:mt-9">
             <h3 className="font-medium text-sm mb-3" style={{ color: "#4B1528" }}>Customer reviews</h3>
-            <ModalReviews reviews={REVIEWS_PRODUCT} />
+            <ReviewsSection reviews={REVIEWS_PRODUCT} />
           </div>
         </div>
       </div>
