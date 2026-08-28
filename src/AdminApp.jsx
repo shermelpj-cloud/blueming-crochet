@@ -17,6 +17,7 @@ const SALE_OPTIONS = [
   { value: "40", label: "40% OFF" },
   { value: "50", label: "50% OFF" },
   { value: "b1t1", label: "Buy 1 Take 1" },
+  { value: "custom", label: "Custom..." },
 ];
 const SALE_LABEL = Object.fromEntries(SALE_OPTIONS.map((o) => [o.value, o.label]));
 
@@ -103,7 +104,7 @@ function SaleBadge({ tag }) {
   if (!tag) return <span className="text-[11px]" style={{ color: "#C7A9B5" }}>—</span>;
   return (
     <span className="text-[11px] font-medium px-2.5 py-1 rounded-full flex items-center gap-1 w-fit" style={{ background: "#FBEAF0", color: "#D4537E" }}>
-      <Tag size={10} /> {SALE_LABEL[tag]}
+      <Tag size={10} /> {SALE_LABEL[tag] || tag}
     </span>
   );
 }
@@ -130,9 +131,11 @@ export default function BluemingAdmin() {
   const [addFiles, setAddFiles] = useState([]);
   const [editProduct, setEditProduct] = useState(null);
   const [editNewFiles, setEditNewFiles] = useState([]);
+  const [editCustomSaleTag, setEditCustomSaleTag] = useState("");
   const [deleteProduct, setDeleteProduct] = useState(null);
   const [editSection, setEditSection] = useState(null);
   const [form, setForm] = useState({ name: "", category: CATEGORIES[0], price: "", size: "", color: "", saleTag: "", description: "", note: "" });
+  const [customSaleTag, setCustomSaleTag] = useState("");
   const [saving, setSaving] = useState(false);
   const [toast, setToast] = useState(null); // { type: 'success' | 'error', message }
 
@@ -175,7 +178,7 @@ export default function BluemingAdmin() {
   }
 
   const filteredProducts = products.filter((p) => categoryFilter === "All" || p.category === categoryFilter);
-  const resetForm = () => { setForm({ name: "", category: CATEGORIES[0], price: "", size: "", color: "", saleTag: "", description: "", note: "" }); setAddFiles([]); };
+  const resetForm = () => { setForm({ name: "", category: CATEGORIES[0], price: "", size: "", color: "", saleTag: "", description: "", note: "" }); setAddFiles([]); setCustomSaleTag(""); };
 
   const uploadImagesFor = async (productId, files, startOrder) => {
     for (let i = 0; i < files.length; i++) {
@@ -200,10 +203,11 @@ export default function BluemingAdmin() {
     if (!form.name || !form.price) return;
     setSaving(true);
     try {
+      const finalSaleTag = form.saleTag === "custom" ? customSaleTag.trim() : form.saleTag;
       const res = await authedFetch(`${REST}/products`, {
         method: "POST",
         headers: { ...authHeaders(token), "Content-Type": "application/json", Prefer: "return=representation" },
-        body: JSON.stringify({ name: form.name, category: form.category, price: Number(form.price), size: form.size, color: form.color, sale_tag: form.saleTag, description: form.description, note: form.note, status: "Active" }),
+        body: JSON.stringify({ name: form.name, category: form.category, price: Number(form.price), size: form.size, color: form.color, sale_tag: finalSaleTag, description: form.description, note: form.note, status: "Active" }),
       }, () => setToken(null));
       const [created] = await res.json();
       await uploadImagesFor(created.id, addFiles, 0);
@@ -221,10 +225,11 @@ export default function BluemingAdmin() {
   const saveEdit = async () => {
     setSaving(true);
     try {
+      const finalSaleTag = editProduct.sale_tag === "custom" ? editCustomSaleTag.trim() : editProduct.sale_tag;
       await authedFetch(`${REST}/products?id=eq.${editProduct.id}`, {
         method: "PATCH",
         headers: { ...authHeaders(token), "Content-Type": "application/json" },
-        body: JSON.stringify({ name: editProduct.name, category: editProduct.category, price: Number(editProduct.price), status: editProduct.status, sale_tag: editProduct.sale_tag, description: editProduct.description, size: editProduct.size, color: editProduct.color, note: editProduct.note }),
+        body: JSON.stringify({ name: editProduct.name, category: editProduct.category, price: Number(editProduct.price), status: editProduct.status, sale_tag: finalSaleTag, description: editProduct.description, size: editProduct.size, color: editProduct.color, note: editProduct.note }),
       }, () => setToken(null));
       const startOrder = (editProduct.product_images?.length || 0);
       await uploadImagesFor(editProduct.id, editNewFiles, startOrder);
@@ -397,7 +402,12 @@ export default function BluemingAdmin() {
                     <td className="py-2 px-3"><SaleBadge tag={p.sale_tag} /></td>
                     <td className="py-2 px-3"><Badge label={p.status} /></td>
                     <td className="py-2 px-3">
-                      <button onClick={() => { setEditProduct({ ...p }); setEditNewFiles([]); }} className="mr-2"><Pencil size={14} color="#185FA5" /></button>
+                      <button onClick={() => {
+                        const isPreset = SALE_OPTIONS.some((o) => o.value === p.sale_tag && o.value !== "custom");
+                        setEditProduct({ ...p, sale_tag: isPreset ? p.sale_tag : (p.sale_tag ? "custom" : "") });
+                        setEditCustomSaleTag(isPreset ? "" : (p.sale_tag || ""));
+                        setEditNewFiles([]);
+                      }} className="mr-2"><Pencil size={14} color="#185FA5" /></button>
                       <button onClick={() => setDeleteProduct(p)}><Trash2 size={14} color="#C0392B" /></button>
                     </td>
                   </tr>
@@ -491,6 +501,9 @@ export default function BluemingAdmin() {
             <textarea value={form.note} onChange={(e) => setForm({ ...form, note: e.target.value })} rows={2} className="w-full px-3 py-2 rounded-lg text-xs outline-none resize-none" style={{ border: "1px solid #F4C0D1" }} />
           </div>
           <SelectField label="Sale tag" value={form.saleTag} onChange={(v) => setForm({ ...form, saleTag: v })} options={SALE_OPTIONS} />
+          {form.saleTag === "custom" && (
+            <Input label="Custom sale tag text" value={customSaleTag} onChange={setCustomSaleTag} placeholder="e.g. 70% OFF or Buy 2 Take 1" />
+          )}
           <button onClick={saveNewProduct} disabled={saving} className="w-full py-2.5 rounded-full font-medium text-xs mt-2 flex items-center justify-center gap-2" style={{ background: "#D4537E", color: "#fff" }}>
             {saving && <Loader2 size={13} className="animate-spin" />} Save product
           </button>
@@ -550,6 +563,9 @@ export default function BluemingAdmin() {
             <textarea value={editProduct.note || ""} onChange={(e) => setEditProduct({ ...editProduct, note: e.target.value })} rows={2} className="w-full px-3 py-2 rounded-lg text-xs outline-none resize-none" style={{ border: "1px solid #F4C0D1" }} />
           </div>
           <SelectField label="Sale tag" value={editProduct.sale_tag} onChange={(v) => setEditProduct({ ...editProduct, sale_tag: v })} options={SALE_OPTIONS} />
+          {editProduct.sale_tag === "custom" && (
+            <Input label="Custom sale tag text" value={editCustomSaleTag} onChange={setEditCustomSaleTag} placeholder="e.g. 70% OFF or Buy 2 Take 1" />
+          )}
           <button onClick={saveEdit} disabled={saving} className="w-full py-2.5 rounded-full font-medium text-xs mt-2 flex items-center justify-center gap-2" style={{ background: "#D4537E", color: "#fff" }}>
             {saving && <Loader2 size={13} className="animate-spin" />} Save changes
           </button>
@@ -618,11 +634,11 @@ function SectionRow({ label, preview, onEdit }) {
   );
 }
 
-function Input({ label, value, onChange }) {
+function Input({ label, value, onChange, ...rest }) {
   return (
     <div className="mb-2.5">
       <label className="text-[11px] block mb-1" style={{ color: "#72243E" }}>{label}</label>
-      <input value={value} onChange={(e) => onChange(e.target.value)} className="w-full px-3 py-2 rounded-lg text-xs outline-none" style={{ border: "1px solid #F4C0D1" }} />
+      <input value={value} onChange={(e) => onChange(e.target.value)} className="w-full px-3 py-2 rounded-lg text-xs outline-none" style={{ border: "1px solid #F4C0D1" }} {...rest} />
     </div>
   );
 }

@@ -53,7 +53,7 @@ function SaleBadge({ tag }) {
   if (!tag) return null;
   return (
     <span className="absolute top-2 left-2 text-[10px] font-medium px-2 py-1 rounded-full z-10" style={{ background: "#D4537E", color: "#fff" }}>
-      {SALE_LABELS[tag]}
+      {SALE_LABELS[tag] || tag}
     </span>
   );
 }
@@ -88,13 +88,13 @@ function ProductMeta({ product, compact = false }) {
   return (
     <>
       {(product.size || product.color) && (
-        <div className={compact ? "text-[10px]" : "text-xs"} style={{ color: "#72243E" }}>
+        <div className={`${compact ? "text-[10px]" : "text-xs"} mt-1`} style={{ color: "#72243E" }}>
           {product.size && <span className="mr-2">Size: <b>{product.size}</b></span>}
           {product.color && <span>Color: <b>{product.color}</b></span>}
         </div>
       )}
       {product.note && (
-        <p className={compact ? "text-[10px]" : "text-xs"} style={{ color: "#72243E" }}>
+        <p className={`${compact ? "text-[10px]" : "text-xs"} mt-1 leading-snug`} style={{ color: "#72243E" }}>
           <span style={{ color: "#C0392B", fontWeight: 700 }}>NOTE: </span>{product.note}
         </p>
       )}
@@ -116,36 +116,86 @@ function ReviewCard({ r }) {
   );
 }
 
-// Auto-sliding on every screen size: single card on mobile/tablet,
-// a rotating window of 3 (out of 5) on desktop
+// Infinite sliding carousel: smooth CSS transform transition, visible left/right
+// arrows, auto-advance, and seamless wrap-around using cloned head/tail items.
+function SlidingReviews({ reviews, windowSize }) {
+  const total = reviews.length;
+  const head = reviews.slice(-windowSize);
+  const tail = reviews.slice(0, windowSize);
+  const extended = [...head, ...reviews, ...tail];
+  const [index, setIndex] = useState(windowSize);
+  const [withTransition, setWithTransition] = useState(true);
+
+  useEffect(() => {
+    const t = setInterval(() => setIndex((i) => i + 1), 4500);
+    return () => clearInterval(t);
+  }, []);
+
+  useEffect(() => {
+    if (index >= windowSize + total) {
+      const timeout = setTimeout(() => {
+        setWithTransition(false);
+        setIndex(windowSize);
+      }, 500);
+      return () => clearTimeout(timeout);
+    }
+    if (index < windowSize) {
+      const timeout = setTimeout(() => {
+        setWithTransition(false);
+        setIndex(windowSize + total - 1);
+      }, 500);
+      return () => clearTimeout(timeout);
+    }
+  }, [index, total, windowSize]);
+
+  useEffect(() => {
+    if (!withTransition) {
+      const raf = requestAnimationFrame(() => setWithTransition(true));
+      return () => cancelAnimationFrame(raf);
+    }
+  }, [withTransition]);
+
+  const prev = () => setIndex((i) => i - 1);
+  const next = () => setIndex((i) => i + 1);
+  const realIndex = ((index - windowSize) % total + total) % total;
+  const itemWidthPct = 100 / windowSize;
+
+  return (
+    <div>
+      <div className="relative px-9">
+        <div className="overflow-hidden">
+          <div className="flex" style={{ transform: `translateX(-${index * itemWidthPct}%)`, transition: withTransition ? "transform 0.5s ease" : "none" }}>
+            {extended.map((r, idx) => (
+              <div key={idx} className="shrink-0 px-1.5" style={{ width: `${itemWidthPct}%` }}>
+                <ReviewCard r={r} />
+              </div>
+            ))}
+          </div>
+        </div>
+        <button onClick={prev} className="absolute left-0 top-1/2 -translate-y-1/2 rounded-full flex items-center justify-center z-10" style={{ width: 32, height: 32, background: "#fff", boxShadow: "0 2px 8px rgba(75,21,40,0.2)" }}>
+          <ChevronLeft size={16} color="#993556" />
+        </button>
+        <button onClick={next} className="absolute right-0 top-1/2 -translate-y-1/2 rounded-full flex items-center justify-center z-10" style={{ width: 32, height: 32, background: "#fff", boxShadow: "0 2px 8px rgba(75,21,40,0.2)" }}>
+          <ChevronRight size={16} color="#993556" />
+        </button>
+      </div>
+      <div className="flex justify-center gap-1.5 mt-4">
+        {reviews.map((_, idx) => (
+          <div key={idx} style={{ width: 6, height: 6, borderRadius: 999, background: idx === realIndex ? "#D4537E" : "#ED93B1" }} />
+        ))}
+      </div>
+    </div>
+  );
+}
+
 function ReviewsSection({ reviews }) {
-  const [i, setI] = useState(0);
-  const [startIdx, setStartIdx] = useState(0);
-
-  useEffect(() => {
-    const t1 = setInterval(() => setI((prev) => (prev + 1) % reviews.length), 4500);
-    return () => clearInterval(t1);
-  }, [reviews.length]);
-
-  useEffect(() => {
-    const t2 = setInterval(() => setStartIdx((prev) => (prev + 1) % reviews.length), 4500);
-    return () => clearInterval(t2);
-  }, [reviews.length]);
-
-  const windowReviews = [0, 1, 2].map((offset) => reviews[(startIdx + offset) % reviews.length]);
-
   return (
     <>
       <div className="md:hidden max-w-2xl mx-auto">
-        <ReviewCard r={reviews[i]} />
-        <div className="flex justify-center gap-1.5 mt-4">
-          {reviews.map((_, idx) => (
-            <button key={idx} onClick={() => setI(idx)} style={{ width: 6, height: 6, borderRadius: 999, background: idx === i ? "#D4537E" : "#ED93B1" }} />
-          ))}
-        </div>
+        <SlidingReviews reviews={reviews} windowSize={1} />
       </div>
-      <div className="hidden md:grid md:grid-cols-3 gap-5">
-        {windowReviews.map((r, idx) => <ReviewCard key={`${startIdx}-${idx}`} r={r} />)}
+      <div className="hidden md:block">
+        <SlidingReviews reviews={reviews} windowSize={3} />
       </div>
     </>
   );
@@ -323,12 +373,14 @@ function ProductsPage() {
               <div className="grid grid-cols-3 sm:grid-cols-4 md:grid-cols-5 gap-3 md:gap-4">
                 {catProducts.slice(0, 5).map((p) => (
                   <button key={p.id} onClick={() => openProduct(p.id)} className="text-left rounded-2xl overflow-hidden w-full" style={{ background: "#fff", border: "1px solid #F4C0D1" }}>
-                    <ProductThumb product={p} />
-                    <div className="p-2">
+                    <div className="p-1.5">
+                      <ProductThumb product={p} />
+                    </div>
+                    <div className="px-2 pb-2">
                       <div className="text-xs font-medium truncate" style={{ color: "#4B1528" }}>{p.name}</div>
-                      <StarRating size={10} />
+                      <div className="mt-1"><StarRating size={10} /></div>
                       <ProductMeta product={p} compact />
-                      <div className="text-xs mt-0.5" style={{ color: "#D4537E" }}>₱{p.price}</div>
+                      <div className="text-xs mt-1.5" style={{ color: "#D4537E" }}>₱{p.price}</div>
                     </div>
                   </button>
                 ))}
@@ -363,12 +415,14 @@ function CategoryPage() {
         <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 gap-3 md:gap-4">
           {catProducts.map((p) => (
             <button key={p.id} onClick={() => openProduct(p.id)} className="text-left rounded-2xl overflow-hidden w-full" style={{ background: "#fff", border: "1px solid #F4C0D1" }}>
-              <ProductThumb product={p} />
-              <div className="p-2.5">
+              <div className="p-1.5">
+                <ProductThumb product={p} />
+              </div>
+              <div className="px-2.5 pb-2.5">
                 <div className="text-xs font-medium" style={{ color: "#4B1528" }}>{p.name}</div>
-                <StarRating size={10} />
+                <div className="mt-1"><StarRating size={10} /></div>
                 <ProductMeta product={p} compact />
-                <div className="text-xs mt-1" style={{ color: "#D4537E" }}>₱{p.price}</div>
+                <div className="text-xs mt-1.5" style={{ color: "#D4537E" }}>₱{p.price}</div>
               </div>
             </button>
           ))}
@@ -440,11 +494,11 @@ function ProductModal({ id, onClose }) {
             </div>
 
             <div className="md:w-1/2 md:flex md:flex-col">
-              <h2 className="font-medium mb-1 pr-8" style={{ fontSize: 19, color: "#4B1528" }}>{p.name}</h2>
+              <h2 className="font-medium mb-1.5 pr-8" style={{ fontSize: 19, color: "#4B1528" }}>{p.name}</h2>
               <StarRating size={13} />
-              <p className="text-sm mb-2 mt-1.5" style={{ color: "#72243E" }}>{p.description}</p>
-              <ProductMeta product={p} />
-              <div className="font-medium mb-3 mt-2" style={{ fontSize: 20, color: "#D4537E" }}>₱{p.price}</div>
+              <p className="text-sm mb-1 mt-2.5" style={{ color: "#72243E" }}>{p.description}</p>
+              <div className="mb-3"><ProductMeta product={p} /></div>
+              <div className="font-medium mb-4" style={{ fontSize: 20, color: "#D4537E" }}>₱{p.price}</div>
               <button onClick={() => setOrderModal(true)} className="w-full md:w-auto md:px-12 py-3 rounded-full font-medium text-sm" style={{ background: "#D4537E", color: "#fff" }}>
                 Order now
               </button>
