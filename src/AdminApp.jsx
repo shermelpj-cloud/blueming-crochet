@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from "react";
-import { Plus, Pencil, Trash2, X, Flower2, ChevronDown, Image as ImageIcon, AlertTriangle, Tag, Upload, Loader2, LogOut } from "lucide-react";
+import { Plus, Pencil, Trash2, X, Flower2, ChevronDown, Image as ImageIcon, AlertTriangle, Tag, Upload, Loader2, LogOut, Video } from "lucide-react";
 
 const SUPABASE_URL = "https://dfcdifrnymtnjazbexep.supabase.co";
 const ANON_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImRmY2RpZnJueW10bmphemJleGVwIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODc2ODg0MTEsImV4cCI6MjEwMzI2NDQxMX0.Ci9a9q_BvEnjL-vnQ3yQ2IjS6rsQJQXCTNISCkDBQ30";
@@ -129,9 +129,11 @@ export default function BluemingAdmin() {
 
   const [showAdd, setShowAdd] = useState(false);
   const [addFiles, setAddFiles] = useState([]);
+  const [addVideo, setAddVideo] = useState(null);
   const [editProduct, setEditProduct] = useState(null);
   const [editNewFiles, setEditNewFiles] = useState([]);
   const [editCustomSaleTag, setEditCustomSaleTag] = useState("");
+  const [editVideo, setEditVideo] = useState(null);
   const [deleteProduct, setDeleteProduct] = useState(null);
   const [editSection, setEditSection] = useState(null);
   const [form, setForm] = useState({ name: "", category: CATEGORIES[0], price: "", size: "", color: "", saleTag: "", description: "", note: "" });
@@ -178,7 +180,7 @@ export default function BluemingAdmin() {
   }
 
   const filteredProducts = products.filter((p) => categoryFilter === "All" || p.category === categoryFilter);
-  const resetForm = () => { setForm({ name: "", category: CATEGORIES[0], price: "", size: "", color: "", saleTag: "", description: "", note: "" }); setAddFiles([]); setCustomSaleTag(""); };
+  const resetForm = () => { setForm({ name: "", category: CATEGORIES[0], price: "", size: "", color: "", saleTag: "", description: "", note: "" }); setAddFiles([]); setAddVideo(null); setCustomSaleTag(""); };
 
   const uploadImagesFor = async (productId, files, startOrder) => {
     for (let i = 0; i < files.length; i++) {
@@ -198,6 +200,23 @@ export default function BluemingAdmin() {
     }
   };
 
+  const uploadVideoFor = async (productId, file) => {
+    if (!file) return null;
+    const path = `${productId}/${Date.now()}_${file.name}`;
+    await authedFetch(`${STORAGE}/object/product-videos/${path}`, {
+      method: "POST",
+      headers: { ...authHeaders(token), "Content-Type": file.type },
+      body: file,
+    }, () => setToken(null));
+    const publicUrl = `${STORAGE}/object/public/product-videos/${path}`;
+    await authedFetch(`${REST}/products?id=eq.${productId}`, {
+      method: "PATCH",
+      headers: { ...authHeaders(token), "Content-Type": "application/json" },
+      body: JSON.stringify({ video_url: publicUrl }),
+    }, () => setToken(null));
+    return publicUrl;
+  };
+
   // ---------- PRODUCT CRUD ----------
   const saveNewProduct = async () => {
     if (!form.name || !form.price) return;
@@ -211,6 +230,7 @@ export default function BluemingAdmin() {
       }, () => setToken(null));
       const [created] = await res.json();
       await uploadImagesFor(created.id, addFiles, 0);
+      if (addVideo) await uploadVideoFor(created.id, addVideo);
       setShowAdd(false);
       resetForm();
       await loadAll();
@@ -229,12 +249,14 @@ export default function BluemingAdmin() {
       await authedFetch(`${REST}/products?id=eq.${editProduct.id}`, {
         method: "PATCH",
         headers: { ...authHeaders(token), "Content-Type": "application/json" },
-        body: JSON.stringify({ name: editProduct.name, category: editProduct.category, price: Number(editProduct.price), status: editProduct.status, sale_tag: finalSaleTag, description: editProduct.description, size: editProduct.size, color: editProduct.color, note: editProduct.note }),
+        body: JSON.stringify({ name: editProduct.name, category: editProduct.category, price: Number(editProduct.price), status: editProduct.status, sale_tag: finalSaleTag, description: editProduct.description, size: editProduct.size, color: editProduct.color, note: editProduct.note, video_url: editProduct.video_url }),
       }, () => setToken(null));
       const startOrder = (editProduct.product_images?.length || 0);
       await uploadImagesFor(editProduct.id, editNewFiles, startOrder);
+      if (editVideo) await uploadVideoFor(editProduct.id, editVideo);
       setEditProduct(null);
       setEditNewFiles([]);
+      setEditVideo(null);
       await loadAll();
       notify("success", "Product updated successfully!");
     } catch (e) {
@@ -407,6 +429,7 @@ export default function BluemingAdmin() {
                         setEditProduct({ ...p, sale_tag: isPreset ? p.sale_tag : (p.sale_tag ? "custom" : "") });
                         setEditCustomSaleTag(isPreset ? "" : (p.sale_tag || ""));
                         setEditNewFiles([]);
+                        setEditVideo(null);
                       }} className="mr-2"><Pencil size={14} color="#185FA5" /></button>
                       <button onClick={() => setDeleteProduct(p)}><Trash2 size={14} color="#C0392B" /></button>
                     </td>
@@ -485,6 +508,12 @@ export default function BluemingAdmin() {
             <input type="file" accept="image/*" multiple className="hidden" onChange={(e) => setAddFiles([...addFiles, ...Array.from(e.target.files)])} />
           </label>
 
+          <label className="rounded-xl flex flex-col items-center justify-center py-4 mb-3 text-xs cursor-pointer" style={{ border: "1.5px dashed #ED93B1", color: "#993556" }}>
+            <Video size={20} className="mb-1" />
+            {addVideo ? `Video selected: ${addVideo.name}` : "Upload video (optional)"}
+            <input type="file" accept="video/*" className="hidden" onChange={(e) => setAddVideo(e.target.files[0] || null)} />
+          </label>
+
           <Input label="Product name" value={form.name} onChange={(v) => setForm({ ...form, name: v })} />
           <div className="mb-2.5">
             <label className="text-[11px] block mb-1" style={{ color: "#72243E" }}>Description</label>
@@ -511,7 +540,7 @@ export default function BluemingAdmin() {
       )}
 
       {editProduct && (
-        <Modal onClose={() => { setEditProduct(null); setEditNewFiles([]); }}>
+        <Modal onClose={() => { setEditProduct(null); setEditNewFiles([]); setEditVideo(null); }}>
           <h3 className="font-medium text-sm mb-3" style={{ color: "#4B1528" }}>Edit product</h3>
 
           {editProduct.product_images?.length > 0 && (
@@ -542,6 +571,18 @@ export default function BluemingAdmin() {
             <ImageIcon size={20} className="mb-1" />
             Upload more photos
             <input type="file" accept="image/*" multiple className="hidden" onChange={(e) => setEditNewFiles([...editNewFiles, ...Array.from(e.target.files)])} />
+          </label>
+
+          {editProduct.video_url && !editVideo && (
+            <div className="mb-3 flex items-center justify-between rounded-lg px-3 py-2" style={{ background: "#FBEAF0" }}>
+              <span className="text-xs flex items-center gap-1.5" style={{ color: "#4B1528" }}><Video size={13} /> Video attached</span>
+              <button onClick={() => setEditProduct({ ...editProduct, video_url: null })} className="text-[11px] font-medium" style={{ color: "#C0392B" }}>Remove</button>
+            </div>
+          )}
+          <label className="rounded-xl flex flex-col items-center justify-center py-4 mb-3 text-xs cursor-pointer" style={{ border: "1.5px dashed #ED93B1", color: "#993556" }}>
+            <Video size={20} className="mb-1" />
+            {editVideo ? `Video selected: ${editVideo.name}` : editProduct.video_url ? "Replace video" : "Upload video (optional)"}
+            <input type="file" accept="video/*" className="hidden" onChange={(e) => setEditVideo(e.target.files[0] || null)} />
           </label>
 
           <Input label="Product name" value={editProduct.name} onChange={(v) => setEditProduct({ ...editProduct, name: v })} />

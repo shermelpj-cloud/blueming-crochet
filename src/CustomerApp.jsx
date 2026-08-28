@@ -446,13 +446,6 @@ function ProductModal({ id, onClose }) {
     setOrderModal(false);
   }, [id]);
 
-  const imagesLen = products.find((pr) => String(pr.id) === String(id))?.product_images?.length || 0;
-  useEffect(() => {
-    if (imagesLen <= 1) return;
-    const timer = setInterval(() => setImgIdx((i) => (i + 1) % imagesLen), 4000);
-    return () => clearInterval(timer);
-  }, [imagesLen, id]);
-
   if (!id) return null;
   const p = products.find((pr) => String(pr.id) === String(id));
   if (!p) return null;
@@ -467,29 +460,34 @@ function ProductModal({ id, onClose }) {
 
         <div className="p-5 md:p-8">
           <div className="md:flex md:gap-8 md:items-start">
-            <div className="relative rounded-2xl overflow-hidden mb-4 md:mb-0 md:w-1/2 md:shrink-0" style={{ border: "1px solid #F4C0D1" }}>
-              {images[imgIdx]?.image_url ? (
-                <img src={images[imgIdx].image_url} alt={p.name} className="w-full" style={{ aspectRatio: "1", objectFit: "cover" }} />
-              ) : (
-                <div style={{ width: "100%", aspectRatio: "1", background: "#F4C0D1" }} className="flex items-center justify-center">
-                  <Heart size={28} color="#993556" fill="#993556" opacity={0.25} />
-                </div>
-              )}
-              <SaleBadge tag={p.sale_tag} />
-              {images.length > 1 && (
-                <>
-                  <button onClick={() => setImgIdx((imgIdx - 1 + images.length) % images.length)} className="absolute left-2 top-1/2 -translate-y-1/2 rounded-full flex items-center justify-center" style={{ background: "#fff", width: 32, height: 32, boxShadow: "0 2px 8px rgba(75,21,40,0.25)" }}>
-                    <ChevronLeft size={18} color="#993556" />
-                  </button>
-                  <button onClick={() => setImgIdx((imgIdx + 1) % images.length)} className="absolute right-2 top-1/2 -translate-y-1/2 rounded-full flex items-center justify-center" style={{ background: "#fff", width: 32, height: 32, boxShadow: "0 2px 8px rgba(75,21,40,0.25)" }}>
-                    <ChevronRight size={18} color="#993556" />
-                  </button>
-                  <div className="absolute bottom-3 left-0 right-0 flex justify-center gap-1.5">
-                    {images.map((_, i) => (
-                      <div key={i} style={{ width: 6, height: 6, borderRadius: 999, background: i === imgIdx ? "#D4537E" : "#fff" }} />
-                    ))}
+            <div className="md:w-1/2 md:shrink-0">
+              <div className="relative rounded-2xl overflow-hidden mb-4 md:mb-0" style={{ border: "1px solid #F4C0D1" }}>
+                {images[imgIdx]?.image_url ? (
+                  <img src={images[imgIdx].image_url} alt={p.name} className="w-full" style={{ aspectRatio: "1", objectFit: "cover" }} />
+                ) : (
+                  <div style={{ width: "100%", aspectRatio: "1", background: "#F4C0D1" }} className="flex items-center justify-center">
+                    <Heart size={28} color="#993556" fill="#993556" opacity={0.25} />
                   </div>
-                </>
+                )}
+                <SaleBadge tag={p.sale_tag} />
+                {images.length > 1 && (
+                  <>
+                    <button onClick={() => setImgIdx((imgIdx - 1 + images.length) % images.length)} className="absolute left-2 top-1/2 -translate-y-1/2 rounded-full flex items-center justify-center" style={{ background: "#fff", width: 32, height: 32, boxShadow: "0 2px 8px rgba(75,21,40,0.25)" }}>
+                      <ChevronLeft size={18} color="#993556" />
+                    </button>
+                    <button onClick={() => setImgIdx((imgIdx + 1) % images.length)} className="absolute right-2 top-1/2 -translate-y-1/2 rounded-full flex items-center justify-center" style={{ background: "#fff", width: 32, height: 32, boxShadow: "0 2px 8px rgba(75,21,40,0.25)" }}>
+                      <ChevronRight size={18} color="#993556" />
+                    </button>
+                    <div className="absolute bottom-3 left-0 right-0 flex justify-center gap-1.5">
+                      {images.map((_, i) => (
+                        <div key={i} style={{ width: 6, height: 6, borderRadius: 999, background: i === imgIdx ? "#D4537E" : "#fff" }} />
+                      ))}
+                    </div>
+                  </>
+                )}
+              </div>
+              {p.video_url && (
+                <video src={p.video_url} controls className="w-full rounded-2xl mt-3" style={{ border: "1px solid #F4C0D1", maxHeight: 320, background: "#000" }} />
               )}
             </div>
 
