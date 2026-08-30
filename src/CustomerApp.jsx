@@ -21,6 +21,8 @@ function saleTagLabel(tag) {
   if (!tag) return null;
   if (tag === "b1t1") return "Buy 1 Take 1";
   if (tag === "b1free") return "Buy 1 Get Free";
+  if (tag === "preorder") return "Pre Order";
+  if (tag === "limited") return "Limited Stocks";
   const pct = Number(tag);
   if (!isNaN(pct) && pct > 0) return `${pct}% OFF`;
   return tag;
@@ -234,7 +236,7 @@ function PageBanner({ imageUrl, emoji, title, desc, showTitle = true }) {
   return (
     <div className="w-full mb-2">
       {imageUrl ? (
-        <div className="w-full" style={{ aspectRatio: "1920 / 400" }}>
+        <div className="w-full" style={{ aspectRatio: "1920 / 200" }}>
           <img src={imageUrl} alt={title} className="w-full h-full object-fill block" />
         </div>
       ) : (
@@ -336,7 +338,7 @@ function HomePage() {
     <div>
       <section>
         {home.image_url ? (
-          <div className="w-full" style={{ aspectRatio: "1920 / 400" }}>
+          <div className="w-full" style={{ aspectRatio: "1920 / 200" }}>
             <img src={home.image_url} alt="Blueming Crochet" className="w-full h-full object-fill block" />
           </div>
         ) : (

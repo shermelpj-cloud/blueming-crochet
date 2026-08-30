@@ -13,6 +13,8 @@ const SALE_OPTIONS = [
   { value: "", label: "No sale tag" },
   { value: "b1t1", label: "Buy 1 Take 1" },
   { value: "b1free", label: "Buy 1 Get Free" },
+  { value: "preorder", label: "Pre Order" },
+  { value: "limited", label: "Limited Stocks" },
   ...Array.from({ length: 80 }, (_, i) => ({ value: String(i + 1), label: `${i + 1}% OFF` })),
 ];
 
@@ -21,6 +23,8 @@ function saleTagLabel(tag) {
   if (!tag) return null;
   if (tag === "b1t1") return "Buy 1 Take 1";
   if (tag === "b1free") return "Buy 1 Get Free";
+  if (tag === "preorder") return "Pre Order";
+  if (tag === "limited") return "Limited Stocks";
   const pct = Number(tag);
   if (!isNaN(pct) && pct > 0) return `${pct}% OFF`;
   return tag;
@@ -695,6 +699,7 @@ export default function BluemingAdmin() {
             )}
             <input type="file" accept="image/*" className="hidden" onChange={(e) => uploadBannerImage(e.target.files[0])} />
           </label>
+          <p className="text-[10px] -mt-2 mb-3" style={{ color: "#C7A9B5" }}>Recommended image size: 1920 × 200px</p>
 
           {editSection.type !== "category" && (
             <Input label="Title" value={editSection.title} onChange={(v) => setEditSection({ ...editSection, title: v })} />
