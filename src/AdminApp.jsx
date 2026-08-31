@@ -7,8 +7,8 @@ const REST = `${SUPABASE_URL}/rest/v1`;
 const AUTH = `${SUPABASE_URL}/auth/v1`;
 const STORAGE = `${SUPABASE_URL}/storage/v1`;
 
-const CATEGORIES = ["Keychains", "Stuffed Toys", "Bags", "Hats", "Flowers", "Amigurumi", "Wearables", "Crochet Goodies"];
-const ICONS = { Keychains: "🔑", "Stuffed Toys": "🧸", Bags: "👜", Hats: "🧢", Flowers: "🌸", Amigurumi: "🐰", Wearables: "🧣", "Crochet Goodies": "🎀" };
+const CATEGORIES = ["Keychains & Bag Charms", "Amigurumi & Plushies", "Bags & Pouches", "Flowers & Bouquets", "Wearables & Accessories", "Gifts & Souvenirs", "Crochet Goodies", "Custom Orders"];
+const ICONS = { "Keychains & Bag Charms": "🔑", "Amigurumi & Plushies": "🧸", "Bags & Pouches": "👜", "Flowers & Bouquets": "🌸", "Wearables & Accessories": "🧣", "Gifts & Souvenirs": "🎁", "Crochet Goodies": "🎀", "Custom Orders": "✂️" };
 const SALE_OPTIONS = [
   { value: "", label: "No sale tag" },
   { value: "b1t1", label: "Buy 1 Take 1" },
@@ -77,7 +77,8 @@ function LoginScreen({ onLogin }) {
   const [error, setError] = useState("");
   const [busy, setBusy] = useState(false);
 
-  const submit = async () => {
+  const submit = async (e) => {
+    if (e) e.preventDefault();
     setError("");
     setBusy(true);
     try {
@@ -98,7 +99,7 @@ function LoginScreen({ onLogin }) {
 
   return (
     <div className="min-h-screen flex items-center justify-center px-6" style={{ background: "#FFF9FB" }}>
-      <div className="w-full max-w-xs rounded-2xl p-6" style={{ background: "#fff", border: "1px solid #F4C0D1" }}>
+      <form onSubmit={submit} className="w-full max-w-xs rounded-2xl p-6" style={{ background: "#fff", border: "1px solid #F4C0D1" }}>
         <div className="flex flex-col items-center mb-5">
           <img src="/logo.jpg" alt="Blueming Crochet" style={{ width: 56, height: 56, borderRadius: "50%", objectFit: "cover" }} className="mb-2" />
           <span className="font-medium text-sm" style={{ color: "#4B1528" }}>Blueming Crochet — Admin</span>
@@ -108,10 +109,10 @@ function LoginScreen({ onLogin }) {
         <label className="text-[11px] block mb-1" style={{ color: "#72243E" }}>Password</label>
         <input type="password" value={password} onChange={(e) => setPassword(e.target.value)} className="w-full px-3 py-2 rounded-lg text-xs outline-none mb-3" style={{ border: "1px solid #F4C0D1" }} />
         {error && <p className="text-[11px] mb-3" style={{ color: "#C0392B" }}>{error}</p>}
-        <button onClick={submit} disabled={busy} className="w-full py-2.5 rounded-full font-medium text-xs flex items-center justify-center gap-2" style={{ background: "#D4537E", color: "#fff" }}>
+        <button type="submit" disabled={busy} className="w-full py-2.5 rounded-full font-medium text-xs flex items-center justify-center gap-2" style={{ background: "#D4537E", color: "#fff" }}>
           {busy && <Loader2 size={13} className="animate-spin" />} Log in
         </button>
-      </div>
+      </form>
     </div>
   );
 }
@@ -267,7 +268,8 @@ export default function BluemingAdmin() {
 
   // ---------- PRODUCT CRUD ----------
   const saveNewProduct = async () => {
-    if (!form.name || !form.price) return;
+    if (!form.name) { notify("error", "Please enter a product name."); return; }
+    if (!form.price || isNaN(Number(form.price)) || Number(form.price) <= 0) { notify("error", "Total Price is required."); return; }
     setSaving(true);
     try {
       const res = await authedFetch(`${REST}/products`, {
@@ -290,6 +292,7 @@ export default function BluemingAdmin() {
   };
 
   const saveEdit = async () => {
+    if (!editProduct.price || isNaN(Number(editProduct.price)) || Number(editProduct.price) <= 0) { notify("error", "Total Price is required."); return; }
     setSaving(true);
     try {
       await authedFetch(`${REST}/products?id=eq.${editProduct.id}`, {
@@ -571,7 +574,7 @@ export default function BluemingAdmin() {
           <SelectField label="Category" value={form.category} onChange={(v) => setForm({ ...form, category: v })} options={CATEGORIES.map((c) => ({ value: c, label: c }))} />
           <div className="grid grid-cols-2 gap-2">
             <Input label="Orig. price (optional)" value={form.origPrice} onChange={handleOrigPriceChange} placeholder="e.g. 200" />
-            <Input label="Price" value={form.price} onChange={(v) => setForm({ ...form, price: v })} />
+            <Input label="Total Price *" value={form.price} onChange={(v) => setForm({ ...form, price: v })} />
           </div>
           <div className="grid grid-cols-2 gap-2">
             <Input label="Size" value={form.size} onChange={(v) => setForm({ ...form, size: v })} />
@@ -645,7 +648,7 @@ export default function BluemingAdmin() {
           <SelectField label="Category" value={editProduct.category} onChange={(v) => setEditProduct({ ...editProduct, category: v })} options={CATEGORIES.map((c) => ({ value: c, label: c }))} />
           <div className="grid grid-cols-2 gap-2">
             <Input label="Orig. price (optional)" value={editProduct.orig_price ?? ""} onChange={handleEditOrigPriceChange} placeholder="e.g. 200" />
-            <Input label="Price" value={editProduct.price} onChange={(v) => setEditProduct({ ...editProduct, price: v })} />
+            <Input label="Total Price *" value={editProduct.price} onChange={(v) => setEditProduct({ ...editProduct, price: v })} />
           </div>
           <SelectField label="Status" value={editProduct.status} onChange={(v) => setEditProduct({ ...editProduct, status: v })} options={[{ value: "Active", label: "Active" }, { value: "Draft", label: "Draft" }]} />
           <div className="grid grid-cols-2 gap-2">

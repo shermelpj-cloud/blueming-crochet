@@ -14,8 +14,8 @@ const EMAILJS_SERVICE_ID = "service_6a0524d";
 const EMAILJS_TEMPLATE_ID = "template_vonkxmh";
 const EMAILJS_PUBLIC_KEY = "kJ6-f5MeUK8ouDHzx";
 
-const CATEGORIES = ["Keychains", "Stuffed Toys", "Bags", "Hats", "Flowers", "Amigurumi", "Wearables", "Crochet Goodies"];
-const ICONS = { Keychains: "🔑", "Stuffed Toys": "🧸", Bags: "👜", Hats: "🧢", Flowers: "🌸", Amigurumi: "🐰", Wearables: "🧣", "Crochet Goodies": "🎀" };
+const CATEGORIES = ["Keychains & Bag Charms", "Amigurumi & Plushies", "Bags & Pouches", "Flowers & Bouquets", "Wearables & Accessories", "Gifts & Souvenirs", "Crochet Goodies", "Custom Orders"];
+const ICONS = { "Keychains & Bag Charms": "🔑", "Amigurumi & Plushies": "🧸", "Bags & Pouches": "👜", "Flowers & Bouquets": "🌸", "Wearables & Accessories": "🧣", "Gifts & Souvenirs": "🎁", "Crochet Goodies": "🎀", "Custom Orders": "✂️" };
 // Human-readable label for a sale_tag value: "10" -> "10% OFF", "b1t1" -> "Buy 1 Take 1", etc.
 function saleTagLabel(tag) {
   if (!tag) return null;
