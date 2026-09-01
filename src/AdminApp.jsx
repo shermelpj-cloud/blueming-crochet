@@ -372,10 +372,13 @@ export default function BluemingAdmin() {
   const saveSection = async () => {
     setSaving(true);
     try {
-      await authedFetch(`${REST}/site_content?key=eq.${encodeURIComponent(editSection.dbKey)}`, {
-        method: "PATCH",
-        headers: { ...authHeaders(token), "Content-Type": "application/json" },
-        body: JSON.stringify({ title: editSection.title, description: editSection.desc, image_url: editSection.imageUrl }),
+      // Upsert instead of PATCH: a category page's site_content row may not
+      // exist yet (e.g. after renaming/adding a category), so PATCH would
+      // silently match zero rows and appear to "succeed" while saving nothing.
+      await authedFetch(`${REST}/site_content?on_conflict=key`, {
+        method: "POST",
+        headers: { ...authHeaders(token), "Content-Type": "application/json", Prefer: "resolution=merge-duplicates,return=representation" },
+        body: JSON.stringify({ key: editSection.dbKey, title: editSection.title, description: editSection.desc, image_url: editSection.imageUrl }),
       }, () => setToken(null));
       setEditSection(null);
       await loadAll();
