@@ -702,7 +702,7 @@ export default function BluemingAdmin() {
             )}
             <input type="file" accept="image/*" className="hidden" onChange={(e) => uploadBannerImage(e.target.files[0])} />
           </label>
-          <p className="text-[10px] -mt-2 mb-3" style={{ color: "#C7A9B5" }}>Recommended image size: 1920 × 200px</p>
+          <p className="text-[10px] -mt-2 mb-3" style={{ color: "#C7A9B5" }}>Any image size works — the banner will display at its original width-to-height ratio on the site. A wide image (e.g. 1920px wide, shorter height) looks best.</p>
 
           {editSection.type !== "category" && (
             <Input label="Title" value={editSection.title} onChange={(v) => setEditSection({ ...editSection, title: v })} />

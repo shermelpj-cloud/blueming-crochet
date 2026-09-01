@@ -236,8 +236,8 @@ function PageBanner({ imageUrl, emoji, title, desc, showTitle = true }) {
   return (
     <div className="w-full mb-2">
       {imageUrl ? (
-        <div className="w-full" style={{ aspectRatio: "1920 / 200" }}>
-          <img src={imageUrl} alt={title} className="w-full h-full object-fill block" />
+        <div className="w-full">
+          <img src={imageUrl} alt={title} className="w-full h-auto block" />
         </div>
       ) : (
         <div className="w-full text-center py-8 md:py-10" style={{ background: "#FBEAF0" }}>
@@ -338,8 +338,8 @@ function HomePage() {
     <div>
       <section>
         {home.image_url ? (
-          <div className="w-full" style={{ aspectRatio: "1920 / 200" }}>
-            <img src={home.image_url} alt="Blueming Crochet" className="w-full h-full object-fill block" />
+          <div className="w-full">
+            <img src={home.image_url} alt="Blueming Crochet" className="w-full h-auto block" />
           </div>
         ) : (
           <div className="text-center px-6 pt-10 pb-8 md:pt-14 md:pb-10" style={{ background: "linear-gradient(180deg,#F4C0D1 0%,#FBEAF0 100%)" }}>
